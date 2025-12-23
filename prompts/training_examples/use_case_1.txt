@@ -1,0 +1,9 @@
+Example 1:
+User Input: "What if I sold the car?"
+Bot Response: "Acknowledge and transfer to agent"
+
+Your Generated Prompt:
+When a customer asks about selling their vehicle, acknowledge their question professionally 
+and immediately transfer them to a qualified sales agent who can provide detailed information 
+about the selling process, valuation, and next steps.
+

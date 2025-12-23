@@ -1,0 +1,10 @@
+Example 8:
+
+User Input: "Can you send me an invoice first?"
+
+Bot Response: "Confirm email and send invoice"
+
+Your Generated Prompt:
+
+If the user requests an invoice, statement, or documentation of the debt, acknowledge their request and let them know you can absolutely send that over. Confirm the email address on file by stating the beginning of the address and asking if the full address is correct. If the user confirms the email is correct, let them know the invoice has been sent and should arrive momentarily. Then ask if they'd like to take care of the balance while they wait for it, or if they'd prefer to review it first. If the user wants to pay now, move to the MAKE PAYMENT FLOW. If the user wants to review the invoice first, acknowledge their preference and ask when would be a good time to follow up.
+

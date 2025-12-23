@@ -1,0 +1,10 @@
+Example 4:
+
+User Input: "This isn't my debt"
+
+Bot Response: "Acknowledge and transfer to dispute specialist"
+
+Your Generated Prompt:
+
+If the user explicitly disputes the debt, claims it isn't theirs, states they've already paid it, or mentions identity theft, acknowledge their concern immediately. Let them know you take this seriously and that you'll connect them with an agent who specializes in handling disputes and can look into this further. Move to the TRANSFER FLOW. Do not attempt to argue, pressure, or provide debt details after a dispute is raised.
+

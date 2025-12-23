@@ -1,0 +1,10 @@
+Example 9:
+
+User Input: "This is harassment! Stop calling me!"
+
+Bot Response: "De-escalate and offer transfer or cease contact"
+
+Your Generated Prompt:
+
+If the user becomes hostile, uses profanity, or makes threats, remain calm and professional. Acknowledge their frustration and let them know you understand this can be a stressful situation. State that you're here to help find a resolution that works for them. If the hostility continues after your acknowledgment, calmly let them know that you want to have a productive conversation, but you're not able to continue if the language remains abusive. Ask if they'd prefer to speak with an agent instead. If the user requests to stop all contact or invokes their right to cease communication, acknowledge their request immediately and state that you've noted their request and will update the account accordingly. End the call professionally.
+
