@@ -15,7 +15,8 @@ A Streamlit web dashboard for managing VAPI voice assistant configurations, incl
 ```
 .
 ├── app.py                      # Main Streamlit application
-├── config.py                   # Configuration constants
+├── config.py                   # Configuration constants (not in git - copy from config.example.py)
+├── config.example.py           # Configuration template
 ├── services/
 │   ├── __init__.py
 │   ├── vapi.py                 # VAPI API service functions
@@ -45,11 +46,15 @@ streamlit run app.py
 
 ### First Time Setup
 
-1. **VAPI API Key**: Enter your VAPI API key in the sidebar
-   - You can find your API key in your [VAPI Dashboard](https://dashboard.vapi.ai)
-
-2. **OpenAI API Key**: Enter your OpenAI API key in the sidebar (required for FAQ prompt generation)
-   - You can find your API key in your [OpenAI Platform](https://platform.openai.com/api-keys)
+1. **Configure API Keys**: 
+   ```bash
+   cp config.example.py config.py
+   ```
+   Then edit `config.py` and add your API keys:
+   - **VAPI API Key**: You can find your API key in your [VAPI Dashboard](https://dashboard.vapi.ai)
+   - **OpenAI API Key**: You can find your API key in your [OpenAI Platform](https://platform.openai.com/api-keys)
+   
+   **Note**: `config.py` is excluded from git for security. Never commit your actual API keys.
 
 ## Usage
 
@@ -88,7 +93,7 @@ streamlit run app.py
 - Base URL: `https://api.openai.com/v1`
 - Authentication: Bearer token (API key)
 - Endpoint: `POST /chat/completions`
-- Model: `gpt-3.5-turbo` (default)
+- Model: `gpt-4o-mini` (configurable in `services/openai_service.py`)
 
 ## Code Organization
 
