@@ -42,6 +42,14 @@ config.py
 *.key
 *.secret
 
+# User database (contains sensitive data)
+data/users.json
+
+# Firebase service account credentials (NEVER COMMIT)
+data/*.json
+*serviceAccount*.json
+*firebase-service-account*.json
+
 # IDE
 .vscode/
 .idea/

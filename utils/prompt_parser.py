@@ -166,7 +166,7 @@ def append_faq_prompt(prompt: str, faq_prompt: str) -> str:
     Args:
         prompt: The main system prompt
         faq_prompt: The FAQ prompt to insert/append
-    
+        
     Returns:
         Combined prompt with FAQ content inserted into existing FAQ section
     """
@@ -214,9 +214,9 @@ def append_faq_prompt(prompt: str, faq_prompt: str) -> str:
         # Determine appropriate heading level (use ## if most sections use ##, ### if they use ###)
         has_three_hash = any(re.match(r'^###\s+', line) for line in lines)
         heading_level = '###' if has_three_hash else '##'
-        
-        # Append with proper spacing
-        if prompt.endswith('\n'):
+    
+    # Append with proper spacing
+    if prompt.endswith('\n'):
             return prompt + f'{heading_level} FAQs\n\n{faq_prompt}'
-        else:
+    else:
             return prompt + f'\n\n{heading_level} FAQs\n\n{faq_prompt}'
