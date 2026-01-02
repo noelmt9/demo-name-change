@@ -1,0 +1,16 @@
+Example Nested 1:
+
+User Input: "Why is my payment so high?"
+
+Bot Response: "Explain late fees and handle objections"
+
+Your Generated Prompt:
+
+1. If the user asks why the payment is higher than usual or if they ask about late fees, explain that the total includes the missed payment plus the late fee, which was assessed after the grace period.
+    - If the user asks why the late fees are so high or questions it again, state that it was clearly outlined in their agreement and was administered only after the payment was not received after the due date. After providing this explanation, return to the current step in the payment negotiation flow to continue towards resolution.
+        - If the user still insists on the late fees being high, transfer the call using the TRANSFER FLOW
+
+    - If the user requests a waiver of the late fees, acknowledge their concern with empathy but firmly state that you are not authorized to remove the fee. Immediately pivot back to a constructive solution by offering to help them find the best way to make the payment now to prevent any additional charges from being applied. Then, seamlessly return to the last point in the payment negotiation flow.
+    - If the user then asks to pay only the past-due amount without the fee, explain that the fee is part of the current outstanding balance. Pivot to a constructive solution by offering to accept a partial payment today and schedule the remainder (including the fee) for a later date. Then, ask how much they can manage today to initiate the Make Payment workflow.
+        - If the user provides any amount that they can pay today then go to the MAKE PAYMENT FLOW.
+

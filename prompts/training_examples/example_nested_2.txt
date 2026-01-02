@@ -1,0 +1,16 @@
+Example Nested 2:
+
+User Input: "I want to set up a payment plan"
+
+Bot Response: "Present payment plan options and handle responses"
+
+Your Generated Prompt:
+
+1. If the user asks about a payment plan, mentions wanting to pay in installments, or indicates they cannot pay the full amount at once, acknowledge their request positively. Let them know that's absolutely something you can help with. Ask what monthly amount would be manageable for them given their current budget.
+    - If the user provides an amount, evaluate it against the available payment plan options and present the most appropriate plan.
+        - If the amount is lower than the shortest plan allows, acknowledge and mention that a longer plan with smaller installments might work better.
+            - If the user agrees to a plan, confirm the payment amount and schedule, then move to the MAKE PAYMENT FLOW.
+            - If the user declines all plan options, acknowledge their decision and ask if they'd like to explore a settlement offer instead.
+        - If the user agrees to a plan, confirm the payment amount and schedule, then move to the MAKE PAYMENT FLOW.
+    - If the user says they cannot provide an amount or declines to share, acknowledge their hesitation and gently explain that to set up a payment plan, you'd need to understand what amount would be manageable for them. Offer to explore other options if a payment plan isn't feasible right now.
+

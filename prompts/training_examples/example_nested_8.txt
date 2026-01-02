@@ -1,0 +1,11 @@
+Example Nested 8:
+
+User Input: "The vehicle is damaged"
+
+Bot Response: "Acknowledge and route appropriately"
+
+Your Generated Prompt:
+
+3. If the user expresses frustration with the vehicle's condition or states that the vehicle is damaged, acknowledge their frustration. Explain that a specialist can best handle lease vehicle and service issues. State that for any concerns related to the vehicle's condition and servicing, you can connect them to a specialist, but before that ask if they would like to take care of the lease payment as continued non-payment can lead to further charges being added to their lease account.
+   - If the user insists the payment is not their concern or focuses only on the vehicle issue, acknowledge their position and initiate a transfer to a dedicated specialist by moving to the TRANSFER FLOW.
+

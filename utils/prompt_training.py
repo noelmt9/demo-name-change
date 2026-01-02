@@ -5,14 +5,12 @@ The model will learn from these examples to generate prompts in your style.
 """
 
 from pathlib import Path
-from typing import Optional
 import hashlib
 import os
 
 # Get the prompts directory paths (relative to this file)
 _PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
 _TRAINING_EXAMPLES_DIR = _PROMPTS_DIR / "training_examples"
-_SYSTEM_PROMPTS_DIR = _PROMPTS_DIR / "system_prompts"
 
 
 def load_writing_style_examples() -> list[str]:
@@ -50,86 +48,6 @@ def load_writing_style_examples() -> list[str]:
     return examples
 
 
-def load_all_system_prompts_as_examples() -> list[str]:
-    """
-    Load a REPRESENTATIVE SAMPLE of system prompts (3-5 diverse ones) instead of all prompts.
-    
-    This is much more efficient than loading all 17 prompts (~750k chars). By sampling
-    diverse prompts (B2B, 3P, 1P, Inbound, Outbound), the model learns the writing style
-    without the overhead of sending everything every time.
-    
-    Returns:
-        List of system prompt strings (sample of diverse prompts)
-    """
-    examples = []
-    
-    if not _SYSTEM_PROMPTS_DIR.exists():
-        return examples
-    
-    # Get all .txt files in the system prompts directory, sorted alphabetically
-    prompt_files = sorted(_SYSTEM_PROMPTS_DIR.glob("*.txt"))
-    
-    if not prompt_files:
-        return examples
-    
-    # Strategy: Sample diverse prompts to represent different styles
-    # We want max 3-5 prompts that cover different categories
-    MAX_SAMPLE_SIZE = 4
-    
-    # Priority categories to ensure diversity
-    categories = {
-        'b2b': None,
-        '3p': None,
-        '1p': None,
-        'inbound': None,
-        'outbound': None
-    }
-    
-    # First pass: Try to get one from each category
-    for prompt_file in prompt_files:
-        filename_lower = prompt_file.stem.lower()
-        
-        # Check categories (prioritize Generic over CarMax for diversity)
-        if 'b2b' in filename_lower and categories['b2b'] is None:
-            if 'generic' in filename_lower:  # Prefer Generic over CarMax
-                categories['b2b'] = prompt_file
-            elif categories['b2b'] is None:
-                categories['b2b'] = prompt_file
-        elif '3p' in filename_lower and 'generic' in filename_lower and categories['3p'] is None:
-            categories['3p'] = prompt_file
-        elif '1p' in filename_lower and 'generic' in filename_lower and categories['1p'] is None:
-            categories['1p'] = prompt_file
-        elif ('ib' in filename_lower or 'inbound' in filename_lower) and categories['inbound'] is None:
-            if 'generic' in filename_lower:
-                categories['inbound'] = prompt_file
-        elif ('ob' in filename_lower or 'outbound' in filename_lower) and categories['outbound'] is None:
-            if 'generic' in filename_lower:
-                categories['outbound'] = prompt_file
-    
-    # Collect selected files from categories
-    selected_files = []
-    for category_file in categories.values():
-        if category_file is not None and len(selected_files) < MAX_SAMPLE_SIZE:
-            selected_files.append(category_file)
-    
-    # If we don't have enough diverse samples, fill with remaining files
-    for prompt_file in prompt_files:
-        if prompt_file not in selected_files and len(selected_files) < MAX_SAMPLE_SIZE:
-            selected_files.append(prompt_file)
-    
-    # Load the selected prompts
-    for prompt_file in selected_files:
-        try:
-            with open(prompt_file, "r", encoding="utf-8") as f:
-                content = f.read().strip()
-                if content:
-                    examples.append(f"=== Example Style from {prompt_file.stem} ===\n{content}")
-        except Exception as e:
-            print(f"Warning: Could not load system prompt file {prompt_file}: {e}")
-    
-    return examples
-
-
 # Cache for training system prompt
 _training_prompt_cache = None
 _training_prompt_cache_hash = None
@@ -137,21 +55,12 @@ _training_prompt_cache_hash = None
 
 def _get_prompts_hash() -> str:
     """
-    Generate a hash of all prompt files' modification times to detect changes.
-    This allows us to invalidate the cache when prompts are updated.
+    Generate a hash of all training example files' modification times to detect changes.
+    This allows us to invalidate the cache when training examples are updated.
     """
     hasher = hashlib.md5()
     
-    # Hash system prompts directory
-    if _SYSTEM_PROMPTS_DIR.exists():
-        for prompt_file in sorted(_SYSTEM_PROMPTS_DIR.glob("*.txt")):
-            try:
-                mtime = os.path.getmtime(prompt_file)
-                hasher.update(f"{prompt_file.name}:{mtime}".encode())
-            except:
-                pass
-    
-    # Hash training examples directory
+    # Hash training examples directory (only source we use now)
     if _TRAINING_EXAMPLES_DIR.exists():
         for example_file in sorted(_TRAINING_EXAMPLES_DIR.glob("*.txt")):
             try:
@@ -165,13 +74,12 @@ def _get_prompts_hash() -> str:
 
 def build_training_system_prompt() -> str:
     """
-    Build a unified training system prompt using a smart sample of system prompts.
+    Build a unified training system prompt using only training examples.
     
     This function:
-    1. Loads a diverse sample of system prompts (3-5) as style examples
-    2. Loads all training examples (conversion patterns)
-    3. Combines them into a master training prompt
-    4. Caches the result and only rebuilds when prompts change
+    1. Loads all training examples (nested structure examples)
+    2. Combines them into a master training prompt
+    3. Caches the result and only rebuilds when training examples change
     
     Returns:
         Complete system prompt string for training OpenAI
@@ -184,11 +92,8 @@ def build_training_system_prompt() -> str:
         return _training_prompt_cache
     
     # Cache miss or invalid - rebuild
-    # Load conversion pattern examples (FAQ → prompt format)
+    # Load training examples (nested structure examples)
     conversion_examples = load_writing_style_examples()
-    
-    # Load a smart sample of system prompts (not all of them)
-    style_examples = load_all_system_prompts_as_examples()
     
     # Build the training prompt
     training_prompt = """You are a prompt engineer specializing in debt collection voicebot systems. Your task is to convert FAQ information into system prompt sections that match a specific writing style.
@@ -217,43 +122,58 @@ Based on the examples above, follow these patterns:
 - Use "ask if they'd like to" instead of "inquire whether they would prefer"
 - Use "that's something an agent can walk them through" instead of "an agent can assist with that matter"
 
+**Nested Conditional Structure (CRITICAL)**
+- Use numbered items (1., 2., etc.) for main triggers
+- Use indented dashes (-) for first-level nested conditions
+- Use double-indented dashes (    -) for second-level nested conditions
+- Use triple-indented dashes (        -) for third-level nested conditions
+- Each nested level should handle a specific user response or objection
+- Always provide context on what to do next after each response
+
 **Conditional Branching**
 - Use "If the user agrees..." and "If the user declines..." for binary outcomes
 - Use "Based on their response" when routing depends on user input
 - Keep conditions at the same indentation level when they're alternatives
+- Structure nested conditionals to handle objections and follow-up questions
 
 **Flow Transitions**
-- End with clear flow references: "Move to the TRANSFER FLOW", "Move to the MAKE PAYMENT FLOW"
+- End nested branches with clear flow references: "go to the MAKE PAYMENT FLOW", "transfer the call using the TRANSFER FLOW"
 - Use "immediately end the call" for terminal states
 - Never leave the next step ambiguous
+- Always specify the flow transition at the appropriate nested level
 
 **Tone**
 - Professional but conversational
 - Empathetic without being overly soft
 - Direct without being aggressive
 
-## ADDITIONAL STYLE CONTEXT
+## STYLE NOTES
 
-{style_examples}
+The examples above demonstrate the complete writing style, structure, and patterns you must replicate. Study them carefully to understand:
+- The exact nested conditional structure (numbered items with indented dashes)
+- How to handle objections and follow-up questions at nested levels
+- How to provide context about flow transitions and returning to steps
+- The specific phrasing and tone used throughout
+
+These examples contain all the style information you need - no additional context is required.
 
 ## OUTPUT REQUIREMENTS
 
 When converting FAQs:
 
-1. Match the voice and phrasing of the examples exactly
-2. Embed the bot response instruction into natural conditional logic
-3. Include appropriate acknowledgment before every action
-4. Specify the exact flow to transition to when applicable
-5. Write as continuous prose, not bullet points or numbered steps
-6. Keep each prompt section focused on a single user intent"""
+1. **Structure**: Use numbered items (1., 2.) for main triggers, with nested indented dashes (-) for follow-up conditions
+2. **Nested Logic**: Create nested conditionals to handle objections, follow-up questions, and different user responses
+3. **Flow Context**: At each nested level, specify what should happen next (flow transition, return to current step, etc.)
+4. **Acknowledgment**: Include appropriate acknowledgment before every action, even in nested branches
+5. **Voice Match**: Match the voice and phrasing of the examples exactly
+6. **Flow Transitions**: Always end with clear flow references at the appropriate nested level
+7. **Context Preservation**: When returning to a flow, specify "return to the current step" or "seamlessly return to the last point" to maintain context"""
     
     # Format the prompt with actual examples
     conversion_text = "\n\n".join(conversion_examples) if conversion_examples else "No conversion examples provided."
-    style_text = "\n\n".join(style_examples) if style_examples else "No style examples provided."
     
     result = training_prompt.format(
-        conversion_examples=conversion_text,
-        style_examples=style_text
+        conversion_examples=conversion_text
     )
     
     # Update cache
@@ -263,53 +183,52 @@ When converting FAQs:
     return result
 
 
-def load_system_prompt(prompt_name: str = "default") -> str:
-    """
-    DEPRECATED: This function is kept for backward compatibility but now always uses
-    the unified training approach with all system prompts.
-    
-    Use build_training_system_prompt() instead.
-    """
-    return build_training_system_prompt()
-
-
-def list_available_system_prompts() -> list[str]:
-    """
-    List all available system prompt names (without .txt extension).
-    
-    Returns:
-        List of system prompt names available in the system_prompts directory.
-    """
-    if not _SYSTEM_PROMPTS_DIR.exists():
-        return []
-    
-    prompt_files = sorted(_SYSTEM_PROMPTS_DIR.glob("*.txt"))
-    return [f.stem for f in prompt_files]
-
-
 # Load writing style examples from the training_examples directory
 WRITING_STYLE_EXAMPLES = load_writing_style_examples()
 
 
 # Generation instructions for converting FAQs
 GENERATION_INSTRUCTIONS = """
-Convert the following FAQs into system prompt sections.
+Convert the following FAQs into system prompt sections with nested conditional structure.
+
+CRITICAL STRUCTURE REQUIREMENTS:
+1. Use numbered format (1., 2., etc.) for main triggers
+2. Use indented dashes (-) for nested conditions that handle follow-up responses
+3. Use double/triple indentation for deeper nesting when needed
+4. Each nested level must specify what happens next (flow transition, return to step, etc.)
+
+AVAILABLE FLOWS:
+The following flows are available in the existing system prompt. ONLY reference these flows - do not create new flow names:
+{available_flows}
+
+If no flows are listed above, you may use common flows like "TRANSFER FLOW" or "MAKE PAYMENT FLOW" if they make sense contextually, but prefer returning to the current step or ending the call when flows are not available.
+
+EXISTING FAQ CONTEXT:
+Below is the existing FAQ section from the prompt (if any). Your new FAQs will be appended to this section. Ensure your generated FAQs are consistent in style and structure:
+{existing_faqs}
 
 TASK:
 For each FAQ, generate a prompt section that:
-- Starts with "If the user..." defining the trigger
-- Acknowledges the user's intent before acting
-- Provides specific instructions in natural prose
-- Ends with a clear flow transition when applicable
+- Starts with a numbered item (1., 2., etc.) and "If the user..." defining the trigger
+- Includes nested indented conditions (-) to handle objections, follow-up questions, and different user responses
+- At each nested level, provides context on what to do next (flow transition, return to current step, etc.)
+- Acknowledges the user's intent before acting at every level
+- Ends nested branches with clear flow transitions when applicable
+- ONLY references flows that are listed in AVAILABLE FLOWS above
+- Keeps each FAQ section concise (aim for 200-400 words per FAQ, not overly verbose)
+
+LENGTH CONSTRAINT:
+Keep each FAQ section reasonably concise. Avoid excessive nesting beyond 3-4 levels unless absolutely necessary. The goal is clarity and actionability, not exhaustive coverage of every possible scenario.
 
 STYLE ENFORCEMENT:
 - Write as if you authored the examples in the STYLE REFERENCE section
-- Use identical phrasing patterns: "acknowledge their...", "let them know...", "ask if they'd like to..."
-- Match the level of detail shown in the examples
-- Do not use bullet points, numbered lists, or headers within the prompt section
+- Use identical phrasing patterns: "acknowledge their...", "let them know...", "pivot to a constructive solution..."
+- Match the nested structure shown in the examples (numbered items with indented dashes)
+- Include context about returning to flows: "return to the current step", "seamlessly return to the last point"
+- Match the level of detail and nested logic shown in the examples
 
-FAQs:
+FAQs TO CONVERT:
 {faqs}
 
-Generate one prompt section per FAQ. Each section should integrate seamlessly with an existing voicebot system prompt.
+Generate one prompt section per FAQ. Each section should use nested conditional structure and integrate seamlessly with the existing voicebot system prompt. Number your FAQs starting from 1 (they will be appended to any existing FAQs).
 """

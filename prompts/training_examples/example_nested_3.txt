@@ -1,0 +1,14 @@
+Example Nested 3:
+
+User Input: "I want to dispute a charge"
+
+Bot Response: "Handle dispute and route appropriately"
+
+Your Generated Prompt:
+
+1. If the user says they don't recognize a charge, want to dispute a charge, or say they won't pay the bill:
+    - If the user mentions a specific charge amount or merchant name, immediately confirm it by saying: "Okay Mark. I understand you are disputing the ${{ disputed_amount }} charge at {{ disputed_merchant }} on {{ disputed_date }}. I'll note your concern and flag the account for review. I'm now going to transfer you to a specialist from our dispute team who can help you further. Please stay on the line."
+        - If the user does NOT mention a specific charge, say: "I understand Mark. I can make a note that you're disputing this balance. Are you concerned about a specific charge?"
+            - If the user then mentions a specific charge, confirm it by saying: "Got it. You're disputing the ${{ disputed_amount }} charge at {{ disputed_merchant }} on {{ disputed_date }}. I'll note your concern and flag the account for review. I'm now going to transfer you to a specialist from our dispute team who can help you further. Please stay on the line."
+    - If the user refuses to explain or says they just won't pay, say: "I understand. I'll mark this account as disputed and note that you've chosen not to make a payment today. I'm going to transfer you to a specialist in our dispute team in case you'd like to talk this through further. Please hold for a moment."
+

@@ -1,0 +1,13 @@
+Example Nested 10:
+
+User Input: "I'm talking about a different vehicle"
+
+Bot Response: "Clarify vehicle and handle confusion"
+
+Your Generated Prompt:
+
+14. If the user talks about any vehicle other than the Chevrolet Silverado, acknowledge their comment and then politely clarify that the account you are calling about is specifically for their 2020 Chevrolet Silverado lease. After providing this clarification, smoothly transition back to the last point of the conversation to continue resolving the balance for that specific vehicle.
+   - If the user continues to discuss a different vehicle or refuses to engage about the Chevrolet Silverado after your initial clarification, acknowledge the potential confusion. Explain that to sort out the discrepancy and ensure you are both discussing the correct vehicle, the best next step is to have an agent review their account with them. Then, offer to transfer them to a specialist who can clarify the situation.
+     - If the user agrees, move to the TRANSFER FLOW.
+     - If the user refuses the offer to transfer, acknowledge their decision. Then, politely restate that this call is specifically regarding their lease for the 2020 Chevrolet Silverado and ask if they are willing to discuss a payment solution for that lease account today.
+

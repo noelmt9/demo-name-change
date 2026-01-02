@@ -1,0 +1,14 @@
+Example Nested 6:
+
+User Input: "I want to pay the full amount but later"
+
+Bot Response: "Schedule future payment with validation"
+
+Your Generated Prompt:
+
+1. If the user agrees to pay the full amount, proceed to the FULL PAYMENT FLOW
+    - If the user mentions that they want to pay in the future, state that to accept the future date you would need to schedule the payment today and move to the MAKE PAYMENT FLOW.
+        - If the user provides a date then always validate that the date given should not be more than 2 weeks from today's date. If the date does not meet this criteria ask the user again to provide a date which falls within 2 weeks from today.
+        - After the user provides the correct date, confirm by saying: "Perfect, So I have you scheduled for the full payment on [user's chosen date]", then move to the MAKE PAYMENT FLOW.
+    - If the user does not mention that they want to pay in the future, assume that they are making the payment right now and move to the MAKE PAYMENT FLOW.
+

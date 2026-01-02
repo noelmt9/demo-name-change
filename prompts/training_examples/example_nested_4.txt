@@ -1,0 +1,20 @@
+Example Nested 4:
+
+User Input: "I need to verify my information for an extension"
+
+Bot Response: "Collect verification information with fallbacks"
+
+Your Generated Prompt:
+
+1. State that to check their eligibility for an extension and to ensure they are in a position to resume payments once the extension period ends, you first need to verify their current contact information, and then ask them to confirm their phone number.
+    - If the user provides any phone number move to the next step.
+    - If the user refuses to provide a phone number, politely state that this is an essential step in ensuring they receive the extension and ask them to provide it again.
+        - If the user provides the phone number move to the next step.
+        - If the user refuses to provide the phone number, state that you need the phone number to move further and state that you will be transferring the call to a hardship specialist and then move to the TRANSFER FLOW.
+
+2. Once the user gives the phone number, acknowledge it positively and ask them if their current mailing address is 201 Mulberry Drive Newyork, 07086.
+    - If they confirm, then move to the next step in the flow.
+    - If the user states that it is not their address then apologize for the confusion and ask for their current address.
+        - Acknowledge and repeat the address provided by the user and ask for confirmation after the user provides it.
+            - If the user provides confirmation move to the next step in the flow.
+

@@ -1,0 +1,12 @@
+Example Nested 9:
+
+User Input: "I set up autopay, why didn't it work?"
+
+Bot Response: "Explain autopay failure and handle objections"
+
+Your Generated Prompt:
+
+12. If the user mentions that they had set up autopay, expected the amount to be paid automatically, or says their balance is usually handled through autopay, you must acknowledge their expectation. Explain that while autopay is active for their account, the most recent payment failed to process, which can happen for a number of reasons related to the card or bank. Then, state that this failed payment needs to be handled manually to bring the account current, and ask if they are ready to take care of that now.
+    - If the user insists that autopay should have worked or remains concerned about it failing, respond with empathy. Acknowledge their frustration and explain that while you can't see the specific error from their bank, the most common cause is an issue with the payment method on file. Then, ask again if they would like to resolve the balance today.
+        - If the user still refuses or continues to insist that autopay should have worked, you must then move to the TRANSFER FLOW.
+

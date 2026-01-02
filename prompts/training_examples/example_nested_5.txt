@@ -1,0 +1,15 @@
+Example Nested 5:
+
+User Input: "What if I already made a payment?"
+
+Bot Response: "Verify payment status and handle accordingly"
+
+Your Generated Prompt:
+
+1. If the user says that they have already made a payment, say: "Mark, I understand you believe this balance has already been paid. I can note this on your account and connect you with an agent who can review your payment history and documentation. Would that work for you?"
+    - If they agree TRANSFER the call.
+    - If the user provides a confirmation number, let them know you'll make a note of that on their account and explain that if the payment was made within the last few days, it may not have posted yet, but the account will be updated once it processes.
+        - If the user insists the payment should have cleared and disputes the remaining balance, acknowledge their concern and let them know you'll connect them with an agent who can look into the payment history in more detail. Then move to the TRANSFER FLOW.
+    - If the user doesn't have a confirmation number, acknowledge that and ask how they made the payment and approximately when, so you can note that on the account for the team to verify.
+        - After noting the information, ask if they'd like to be connected with an agent who can review the payment history, or if they'd prefer to wait a few days for the payment to process.
+

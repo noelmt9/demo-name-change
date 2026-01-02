@@ -4,6 +4,10 @@ import streamlit as st
 import os
 import copy
 from typing import Dict, List
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 from config import (
     ASSISTANTS_STORAGE_KEY,
@@ -213,6 +217,35 @@ def main():
         help="This name will be used to identify the assistant in VAPI"
     )
     
+    # Show existing FAQ context (always visible, before FAQs)
+    # Note: Flows are extracted and passed to OpenAI but not shown in UI
+    st.markdown("---")
+    existing_prompt = st.session_state.get(SYSTEM_PROMPT_STORAGE_KEY, "")
+    from utils.prompt_parser import extract_flows, extract_existing_faq_section, count_existing_faqs
+    
+    with st.expander("📋 View Existing FAQ Context", expanded=True):
+        if existing_prompt:
+            # Extract flows for OpenAI (not shown in UI)
+            available_flows = extract_flows(existing_prompt)
+            existing_faqs = extract_existing_faq_section(existing_prompt)
+            existing_faq_count = count_existing_faqs(existing_prompt)
+            
+            if existing_faqs:
+                st.markdown(f"**Existing FAQ Section:** ({existing_faq_count} FAQ{'s' if existing_faq_count != 1 else ''} found)")
+                st.text_area(
+                    "Existing FAQs",
+                    value=existing_faqs,
+                    height=150,
+                    key="existing_faqs_display",
+                    disabled=True,
+                    help=f"These {existing_faq_count} FAQ(s) already exist in the prompt. Your new FAQs will be appended and numbered starting from {existing_faq_count + 1}."
+                )
+            else:
+                st.info("No existing FAQ section found. This will be the first FAQ section.")
+        else:
+            st.warning("⚠️ No assistant loaded. Please select an assistant from the sidebar to see existing FAQs.")
+            st.info("💡 Once you load an assistant, this section will show existing FAQ sections (if any).")
+    
     # Optional Custom FAQs Section
     st.markdown("---")
     with st.expander("❓ Optional: Add Custom FAQs", expanded=False):
@@ -325,13 +358,18 @@ def main():
             st.markdown("---")
             st.subheader("Generate FAQ Prompt")
             st.markdown("The AI will automatically learn from **all** your imported system prompts and generate FAQ prompts that match your writing style, tone, and structure.")
+            st.caption("💡 **Tip:** The AI will consider your existing prompt's flows and FAQ sections (shown above) to ensure consistency. Generated FAQs will be concise and only reference available flows.")
+            
             if st.button("🤖 Generate FAQ Prompt", type="primary", use_container_width=True, key="generate_faq_prompt_inline"):
                 if not faqs:
                     st.error("Please add at least one FAQ before generating the prompt.")
                 else:
                     try:
-                        with st.spinner("Generating FAQ prompt with AI (using your writing style)..."):
-                            generated_prompt = openai_service.generate_faq_prompt(faqs=faqs)
+                        with st.spinner("Generating FAQ prompt with AI (using your writing style and existing prompt context)..."):
+                            generated_prompt = openai_service.generate_faq_prompt(
+                                faqs=faqs,
+                                existing_prompt=existing_prompt if existing_prompt else None
+                            )
                             st.session_state[FAQ_PROMPT_STORAGE_KEY] = generated_prompt
                             st.success("FAQ prompt generated successfully using your trained writing style!")
                             st.rerun()

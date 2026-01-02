@@ -13,19 +13,22 @@ def get_api_key() -> Optional[str]:
 
 def generate_faq_prompt(
     faqs: List[Dict[str, str]],
+    existing_prompt: Optional[str] = None,
     system_prompt_template: Optional[str] = None,
     system_prompt_name: Optional[str] = None
 ) -> str:
     """
     Generate a prompt from FAQs using OpenAI API with trained writing style.
     
-    This function automatically learns from ALL system prompts in prompts/system_prompts/
-    to understand the desired writing style, tone, and structure. No prompt selection needed.
+    This function uses training examples from prompts/training_examples/ to learn
+    the desired writing style, tone, and nested structure. It also considers the
+    existing system prompt to extract available flows and existing FAQ sections.
     
     Args:
         faqs: List of FAQ dictionaries with 'trigger' and 'instruction' keys
-        system_prompt_template: Optional template (deprecated - now uses unified training)
-        system_prompt_name: Deprecated - no longer used. All system prompts are used automatically.
+        existing_prompt: Optional existing system prompt to extract flows and FAQ context from
+        system_prompt_template: Optional template (deprecated - not used)
+        system_prompt_name: Deprecated - not used
     
     Returns:
         Generated prompt string from OpenAI in the trained writing style
@@ -37,26 +40,34 @@ def generate_faq_prompt(
     if not faqs:
         raise ValueError("At least one FAQ is required")
     
-    # Use the unified training system prompt (learns from ALL system prompts)
+    # Use the unified training system prompt (learns from training examples only)
     training_system_prompt = build_training_system_prompt()
     
-    # Check if the system prompt is too long (OpenAI has token limits)
-    # Rough estimate: 1 token ≈ 4 characters, max context is ~128k tokens for gpt-4o-mini
-    # We'll keep system prompt under ~100k tokens to leave room for user prompt and response
-    MAX_SYSTEM_PROMPT_LENGTH = 400000  # ~100k tokens
-    if len(training_system_prompt) > MAX_SYSTEM_PROMPT_LENGTH:
-        # Truncate but keep the important parts (instructions and a sample of examples)
-        print(f"Warning: Training system prompt is very long ({len(training_system_prompt)} chars). Truncating...")
-        # Keep the first part (instructions) and truncate examples
-        parts = training_system_prompt.split("=== WRITING STYLE EXAMPLES ===")
-        if len(parts) > 1:
-            instructions = parts[0]
-            examples = parts[1]
-            # Truncate examples to fit
-            max_examples_length = MAX_SYSTEM_PROMPT_LENGTH - len(instructions) - 1000
-            if len(examples) > max_examples_length:
-                examples = examples[:max_examples_length] + "\n\n[... examples truncated for length ...]"
-            training_system_prompt = instructions + "=== WRITING STYLE EXAMPLES ===\n" + examples
+    # Extract context from existing prompt if provided
+    from utils.prompt_parser import extract_flows, extract_existing_faq_section, count_existing_faqs
+    
+    available_flows = []
+    existing_faqs = ""
+    existing_faq_count = 0
+    
+    if existing_prompt:
+        available_flows = extract_flows(existing_prompt)
+        existing_faqs = extract_existing_faq_section(existing_prompt)
+        existing_faq_count = count_existing_faqs(existing_prompt)
+    
+    # Format available flows for the prompt
+    if available_flows:
+        flows_text = "\n".join([f"- {flow}" for flow in available_flows])
+    else:
+        flows_text = "No specific flows found in the existing prompt. Use common flows like 'TRANSFER FLOW' or 'MAKE PAYMENT FLOW' only if contextually appropriate, otherwise prefer returning to the current step."
+    
+    # Format existing FAQs
+    if existing_faqs:
+        existing_faqs_text = existing_faqs[:2000]  # Limit to 2000 chars to avoid token limits
+        if len(existing_faqs) > 2000:
+            existing_faqs_text += "\n\n[... existing FAQs continue ...]"
+    else:
+        existing_faqs_text = "No existing FAQ section found. This will be the first FAQ section."
     
     # Build the FAQ list for the prompt
     faqs_text = "\n".join([
@@ -64,8 +75,22 @@ def generate_faq_prompt(
         for i, faq in enumerate(faqs)
     ])
     
-    # Use the trained generation instructions
-    user_prompt = GENERATION_INSTRUCTIONS.format(faqs=faqs_text)
+    # Use the trained generation instructions with context
+    # Adjust numbering if there are existing FAQs
+    if existing_faq_count > 0:
+        # Update the instructions to continue numbering
+        generation_instructions = GENERATION_INSTRUCTIONS.replace(
+            "Number your FAQs starting from 1",
+            f"Number your FAQs starting from {existing_faq_count + 1} (there are already {existing_faq_count} existing FAQs)"
+        )
+    else:
+        generation_instructions = GENERATION_INSTRUCTIONS
+    
+    user_prompt = generation_instructions.format(
+        available_flows=flows_text,
+        existing_faqs=existing_faqs_text,
+        faqs=faqs_text
+    )
     
     # Make request to OpenAI with training system prompt
     url = f"{OPENAI_API_BASE_URL}/chat/completions"

@@ -1,9 +1,0 @@
-Example 2:
-User Input: "How do I cancel my subscription?"
-Bot Response: "Provide cancellation steps and confirm"
-
-Your Generated Prompt:
-When a customer inquires about canceling their subscription, provide clear and concise step-by-step 
-instructions for the cancellation process. After explaining the steps, confirm that the customer 
-understands the process and ask if they need any additional assistance with their account.
-
