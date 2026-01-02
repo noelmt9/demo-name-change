@@ -173,10 +173,11 @@ def _render_google_sign_in():
       cursor: pointer;">
       Continue with Google
     </button>
+    <div id="status" style="margin-top:8px;font-size:12px;color:#666;line-height:1.35;"></div>
 
     <script type="module">
       import {{ initializeApp }} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-      import {{ getAuth, GoogleAuthProvider, signInWithPopup }} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+      import {{ getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult }} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
       const firebaseConfig = {json.dumps(js_config)};
       const app = initializeApp(firebaseConfig);
@@ -184,18 +185,60 @@ def _render_google_sign_in():
       const provider = new GoogleAuthProvider();
 
       const btn = document.getElementById("googleBtn");
+      const statusEl = document.getElementById("status");
+
+      function setStatus(text, isError = false) {{
+        statusEl.textContent = text || "";
+        statusEl.style.color = isError ? "#b00020" : "#666";
+      }}
+
+      async function finishWithIdToken(user) {{
+        const token = await user.getIdToken();
+        const url = new URL(window.location.href);
+        url.searchParams.set("firebase_id_token", token);
+        window.location.href = url.toString();
+      }}
+
+      // If we returned from a redirect-based sign-in, complete it here.
+      try {{
+        const redirectResult = await getRedirectResult(auth);
+        if (redirectResult && redirectResult.user) {{
+          setStatus("Finishing Google sign-in…");
+          await finishWithIdToken(redirectResult.user);
+        }}
+      }} catch (e) {{
+        const code = e?.code ? String(e.code) : "";
+        const msg = e?.message ? String(e.message) : String(e);
+        setStatus(`Google redirect failed: ${{code}} ${{msg}}`, true);
+        console.error(e);
+      }}
+
       btn.addEventListener("click", async () => {{
         try {{
+          setStatus("");
+          btn.disabled = true;
+          btn.innerText = "Opening Google…";
           const result = await signInWithPopup(auth, provider);
           const user = result.user;
-          const token = await user.getIdToken();
-
-          const url = new URL(window.location.href);
-          url.searchParams.set("firebase_id_token", token);
-          window.location.href = url.toString();
+          await finishWithIdToken(user);
         }} catch (e) {{
-          btn.innerText = "Google Sign-In failed — try again";
+          const code = e?.code ? String(e.code) : "";
+          const msg = e?.message ? String(e.message) : String(e);
           console.error(e);
+
+          // Common on hosted/embedded UIs: popup blocked or unsupported → fall back to redirect.
+          if (code === "auth/popup-blocked" || code === "auth/operation-not-supported-in-this-environment") {{
+            setStatus(`Popup blocked (${{
+              code
+            }}). Redirecting to Google…`);
+            btn.innerText = "Redirecting…";
+            await signInWithRedirect(auth, provider);
+            return;
+          }}
+
+          btn.innerText = "Google Sign-In failed — try again";
+          btn.disabled = false;
+          setStatus(`Google sign-in failed: ${{code}} ${{msg}}`, true);
         }}
       }});
     </script>

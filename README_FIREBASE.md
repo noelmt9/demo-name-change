@@ -152,6 +152,13 @@ components/
 - Make sure all Firebase environment variables are set in `.env`
 - Check that `FIREBASE_API_KEY`, `FIREBASE_AUTH_DOMAIN`, and `FIREBASE_PROJECT_ID` are present
 
+### "Google Sign-In failed" (especially on Replit)
+
+If the button appears but clicking it fails, the most common cause is Firebase blocking the hosted domain.
+
+- **Fix**: In Firebase Console → **Authentication** → **Settings** → **Authorized domains**, add your Replit domain (the hostname you see in the URL), e.g. `your-repl-name.your-username.repl.co` (or the `*.replit.app`/`*.replit.dev` style domain your Replit is using).
+- **What you’ll see**: The error shown in the UI will often include `auth/unauthorized-domain` when this is the issue.
+
 ### "Failed to initialize Firebase"
 
 - Verify your Firebase configuration values are correct
