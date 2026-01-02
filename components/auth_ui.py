@@ -173,7 +173,7 @@ def _render_google_sign_in():
       cursor: pointer;">
       Continue with Google
     </button>
-    <div id="status" style="margin-top:8px;font-size:12px;color:#666;line-height:1.35;"></div>
+    <div id="status" style="margin-top:8px;font-size:12px;color:#666;line-height:1.35;word-break:break-word;"></div>
 
     <script type="module">
       import {{ initializeApp }} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -191,6 +191,20 @@ def _render_google_sign_in():
         statusEl.textContent = text || "";
         statusEl.style.color = isError ? "#b00020" : "#666";
       }}
+
+      // Helpful debug info for hosted environments (e.g. Replit): shows the exact origin
+      // that must be added to Firebase Auth -> Authorized domains.
+      setStatus(
+        `Origin: ${{
+          window.location.origin
+        }} | Host: ${{
+          window.location.host
+        }} | Firebase projectId: ${{
+          firebaseConfig.projectId
+        }} | authDomain: ${{
+          firebaseConfig.authDomain
+        }}`
+      );
 
       async function finishWithIdToken(user) {{
         const token = await user.getIdToken();
@@ -245,7 +259,8 @@ def _render_google_sign_in():
   </body>
 </html>
 """
-    components.html(html, height=60)
+    # Give enough room for the status/error text.
+    components.html(html, height=110)
 
 
 def _get_query_param(key: str) -> str | None:
