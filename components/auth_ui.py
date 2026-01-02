@@ -177,7 +177,7 @@ def _render_google_sign_in():
 
     <script type="module">
       import {{ initializeApp }} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-      import {{ getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult }} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+      import {{ getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult }} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
       const firebaseConfig = {json.dumps(js_config)};
       const app = initializeApp(firebaseConfig);
@@ -231,7 +231,7 @@ def _render_google_sign_in():
         }}
       }}
 
-      // If we returned from a redirect-based sign-in, complete it here.
+      // Handle redirect callback - if we returned from a redirect-based sign-in, complete it here.
       try {{
         const redirectResult = await getRedirectResult(auth);
         if (redirectResult && redirectResult.user) {{
@@ -241,53 +241,26 @@ def _render_google_sign_in():
       }} catch (e) {{
         const code = e?.code ? String(e.code) : "";
         const msg = e?.message ? String(e.message) : String(e);
-        setStatus(`Google redirect failed: ${{code}} ${{msg}}`, true);
-        console.error(e);
+        if (code && code !== "auth/no-auth-event") {{
+          // Only show error if it's not the expected "no auth event" (which means no redirect happened yet)
+          setStatus(`Google redirect failed: ${{code}} ${{msg}}`, true);
+          console.error("Redirect result error:", e);
+        }}
       }}
 
       btn.addEventListener("click", async () => {{
         try {{
-          setStatus("Opening Google sign-in popup…");
+          setStatus("Redirecting to Google sign-in…");
           btn.disabled = true;
-          btn.innerText = "Opening Google…";
+          btn.innerText = "Redirecting…";
           
-          const result = await signInWithPopup(auth, provider);
-          
-          if (!result || !result.user) {{
-            throw new Error("No user returned from Google sign-in");
-          }}
-          
-          setStatus("Sign-in successful! Processing…");
-          const user = result.user;
-          console.log("Google sign-in successful, user:", user.email);
-          await finishWithIdToken(user);
+          // Always use redirect (more reliable in iframe/embedded contexts)
+          await signInWithRedirect(auth, provider);
+          // Note: After redirect, user will be redirected back and getRedirectResult will handle it
         }} catch (e) {{
           const code = e?.code ? String(e.code) : "";
           const msg = e?.message ? String(e.message) : String(e);
-          console.error("Google sign-in error:", e);
-
-          // Common on hosted/embedded UIs: popup blocked or unsupported → fall back to redirect.
-          if (code === "auth/popup-blocked" || code === "auth/operation-not-supported-in-this-environment") {{
-            setStatus(`Popup blocked (${{
-              code
-            }}). Redirecting to Google…`);
-            btn.innerText = "Redirecting…";
-            try {{
-              await signInWithRedirect(auth, provider);
-              return;
-            }} catch (redirectError) {{
-              console.error("Redirect error:", redirectError);
-              setStatus(`Redirect failed: ${{redirectError.message}}`, true);
-            }}
-          }}
-
-          // Check if user cancelled
-          if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {{
-            setStatus("Sign-in cancelled");
-            btn.innerText = "Continue with Google";
-            btn.disabled = false;
-            return;
-          }}
+          console.error("Google sign-in redirect error:", e);
 
           // Check for unauthorized domain error
           if (code === "auth/unauthorized-domain" || msg.includes("unauthorized") || msg.includes("domain")) {{
