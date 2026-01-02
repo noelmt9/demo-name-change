@@ -29,8 +29,19 @@ def initialize_firebase_admin():
     """Initialize Firebase Admin SDK."""
     global _firebase_admin_initialized
     
+    # Check if already initialized
     if _firebase_admin_initialized:
         return
+    
+    # Check if Firebase Admin app already exists (from a previous failed attempt)
+    try:
+        # Try to get the default app - if it exists, we're already initialized
+        firebase_admin.get_app()
+        _firebase_admin_initialized = True
+        return
+    except ValueError:
+        # App doesn't exist yet, proceed with initialization
+        pass
 
     # 1) Preferred for Replit/hosted: JSON stored in env var/secret
     if FIREBASE_SERVICE_ACCOUNT_JSON:
@@ -45,6 +56,12 @@ def initialize_firebase_admin():
             firebase_admin.initialize_app(cred)
             _firebase_admin_initialized = True
             return
+        except ValueError as e:
+            # App already exists - mark as initialized
+            if "already exists" in str(e):
+                _firebase_admin_initialized = True
+                return
+            st.error(f"❌ Failed to initialize Firebase Admin: {str(e)}")
         except json.JSONDecodeError as e:
             st.error(f"❌ Invalid JSON in FIREBASE_SERVICE_ACCOUNT_JSON: {str(e)}")
             st.info("💡 Make sure you pasted the **entire JSON content** as the secret value, not just a path.")
@@ -58,13 +75,24 @@ def initialize_firebase_admin():
             firebase_admin.initialize_app(cred)
             _firebase_admin_initialized = True
             return
+        except ValueError as e:
+            # App already exists - mark as initialized
+            if "already exists" in str(e):
+                _firebase_admin_initialized = True
+                return
+            st.error(f"❌ Failed to initialize Firebase Admin: {str(e)}")
         except Exception as e:
-            st.error(f"Failed to initialize Firebase Admin from FIREBASE_CREDENTIALS_PATH: {str(e)}")
+            st.error(f"❌ Failed to initialize Firebase Admin from FIREBASE_CREDENTIALS_PATH: {str(e)}")
 
     # 3) Fallback: default credentials (may work on some cloud runtimes)
     try:
         firebase_admin.initialize_app()
         _firebase_admin_initialized = True
+    except ValueError as e:
+        # App already exists - mark as initialized
+        if "already exists" in str(e):
+            _firebase_admin_initialized = True
+        # Otherwise, silently fail - Admin SDK not required for email/password
     except Exception:
         pass  # Admin SDK not required for email/password; only needed to verify Google ID tokens
 

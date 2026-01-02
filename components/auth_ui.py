@@ -183,6 +183,10 @@ def _render_google_sign_in():
       const app = initializeApp(firebaseConfig);
       const auth = getAuth(app);
       const provider = new GoogleAuthProvider();
+      
+      // Get the parent window's URL (the actual Streamlit app, not the iframe)
+      // This is needed because components.html() runs in an iframe with about:srcdoc
+      let parentUrl = window.top.location.href.split('?')[0]; // Remove existing query params
 
       const btn = document.getElementById("googleBtn");
       const statusEl = document.getElementById("status");
@@ -194,23 +198,37 @@ def _render_google_sign_in():
 
       // Helpful debug info for hosted environments (e.g. Replit): shows the exact origin
       // that must be added to Firebase Auth -> Authorized domains.
+      const parentOrigin = window.top.location.origin;
+      const parentHost = window.top.location.host;
       setStatus(
-        `Origin: ${{
-          window.location.origin
-        }} | Host: ${{
-          window.location.host
-        }} | Firebase projectId: ${{
-          firebaseConfig.projectId
-        }} | authDomain: ${{
-          firebaseConfig.authDomain
-        }}`
+        `⚠️ Add this to Firebase Authorized Domains: "${{parentHost}}" or "${{parentOrigin}}"`
       );
 
       async function finishWithIdToken(user) {{
-        const token = await user.getIdToken();
-        const url = new URL(window.location.href);
-        url.searchParams.set("firebase_id_token", token);
-        window.location.href = url.toString();
+        try {{
+          setStatus("Getting authentication token…");
+          const token = await user.getIdToken();
+          
+          if (!token) {{
+            setStatus("Error: No token received", true);
+            btn.innerText = "Google Sign-In failed — try again";
+            btn.disabled = false;
+            return;
+          }}
+          
+          setStatus("Redirecting back to app…");
+          // Get the parent window's URL (the actual Streamlit app, not the iframe)
+          const parentUrl = window.top.location.href.split('?')[0]; // Remove existing query params
+          const url = new URL(parentUrl);
+          url.searchParams.set("firebase_id_token", token);
+          // Redirect the parent window (the Streamlit app)
+          window.top.location.href = url.toString();
+        }} catch (error) {{
+          setStatus(`Error finishing sign-in: ${{error.message}}`, true);
+          btn.innerText = "Google Sign-In failed — try again";
+          btn.disabled = false;
+          console.error("finishWithIdToken error:", error);
+        }}
       }}
 
       // If we returned from a redirect-based sign-in, complete it here.
@@ -229,16 +247,24 @@ def _render_google_sign_in():
 
       btn.addEventListener("click", async () => {{
         try {{
-          setStatus("");
+          setStatus("Opening Google sign-in popup…");
           btn.disabled = true;
           btn.innerText = "Opening Google…";
+          
           const result = await signInWithPopup(auth, provider);
+          
+          if (!result || !result.user) {{
+            throw new Error("No user returned from Google sign-in");
+          }}
+          
+          setStatus("Sign-in successful! Processing…");
           const user = result.user;
+          console.log("Google sign-in successful, user:", user.email);
           await finishWithIdToken(user);
         }} catch (e) {{
           const code = e?.code ? String(e.code) : "";
           const msg = e?.message ? String(e.message) : String(e);
-          console.error(e);
+          console.error("Google sign-in error:", e);
 
           // Common on hosted/embedded UIs: popup blocked or unsupported → fall back to redirect.
           if (code === "auth/popup-blocked" || code === "auth/operation-not-supported-in-this-environment") {{
@@ -246,13 +272,42 @@ def _render_google_sign_in():
               code
             }}). Redirecting to Google…`);
             btn.innerText = "Redirecting…";
-            await signInWithRedirect(auth, provider);
+            try {{
+              await signInWithRedirect(auth, provider);
+              return;
+            }} catch (redirectError) {{
+              console.error("Redirect error:", redirectError);
+              setStatus(`Redirect failed: ${{redirectError.message}}`, true);
+            }}
+          }}
+
+          // Check if user cancelled
+          if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {{
+            setStatus("Sign-in cancelled");
+            btn.innerText = "Continue with Google";
+            btn.disabled = false;
             return;
+          }}
+
+          // Check for unauthorized domain error
+          if (code === "auth/unauthorized-domain" || msg.includes("unauthorized") || msg.includes("domain")) {{
+            setStatus(
+              `❌ Unauthorized Domain Error\\n\\n` +
+              `Add "${{parentHost}}" to Firebase Authorized Domains:\\n` +
+              `1. Go to Firebase Console → Authentication → Settings\\n` +
+              `2. Scroll to "Authorized domains"\\n` +
+              `3. Click "Add domain"\\n` +
+              `4. Enter: "${{parentHost}}"\\n` +
+              `5. Click "Add"\\n` +
+              `6. Refresh this page and try again`,
+              true
+            );
+          }} else {{
+            setStatus(`Google sign-in failed: ${{code}} ${{msg}}`, true);
           }}
 
           btn.innerText = "Google Sign-In failed — try again";
           btn.disabled = false;
-          setStatus(`Google sign-in failed: ${{code}} ${{msg}}`, true);
         }}
       }});
     </script>
