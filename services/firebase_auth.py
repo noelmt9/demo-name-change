@@ -35,13 +35,21 @@ def initialize_firebase_admin():
     # 1) Preferred for Replit/hosted: JSON stored in env var/secret
     if FIREBASE_SERVICE_ACCOUNT_JSON:
         try:
-            service_account_info = json.loads(FIREBASE_SERVICE_ACCOUNT_JSON)
+            # Handle both string JSON and already-parsed dict
+            if isinstance(FIREBASE_SERVICE_ACCOUNT_JSON, str):
+                service_account_info = json.loads(FIREBASE_SERVICE_ACCOUNT_JSON)
+            else:
+                service_account_info = FIREBASE_SERVICE_ACCOUNT_JSON
+            
             cred = credentials.Certificate(service_account_info)
             firebase_admin.initialize_app(cred)
             _firebase_admin_initialized = True
             return
+        except json.JSONDecodeError as e:
+            st.error(f"❌ Invalid JSON in FIREBASE_SERVICE_ACCOUNT_JSON: {str(e)}")
+            st.info("💡 Make sure you pasted the **entire JSON content** as the secret value, not just a path.")
         except Exception as e:
-            st.error(f"Failed to initialize Firebase Admin from FIREBASE_SERVICE_ACCOUNT_JSON: {str(e)}")
+            st.error(f"❌ Failed to initialize Firebase Admin from FIREBASE_SERVICE_ACCOUNT_JSON: {str(e)}")
 
     # 2) Local dev: JSON file path
     if FIREBASE_CREDENTIALS_PATH and os.path.exists(FIREBASE_CREDENTIALS_PATH):
