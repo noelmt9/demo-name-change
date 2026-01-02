@@ -3,3 +3,6 @@ requests>=2.31.0
 python-dotenv>=1.0.0
 firebase-admin>=6.2.0
 pyrebase4>=4.7.1
+firebase-admin
+pyrebase4
+python-dotenv
