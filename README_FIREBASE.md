@@ -58,20 +58,32 @@ FIREBASE_MESSAGING_SENDER_ID=your-sender-id
 FIREBASE_APP_ID=your-app-id
 FIREBASE_DATABASE_URL=https://your-project.firebaseio.com  # Optional
 
-# Firebase Admin SDK (Optional - for server-side operations)
-# Download service account key from Firebase Console → Project Settings → Service Accounts
-FIREBASE_CREDENTIALS_PATH=path/to/serviceAccountKey.json
+# Firebase Admin SDK (Required for Google Sign-In token verification)
+# Option 1: Local - File path
+FIREBASE_CREDENTIALS_PATH=data/firebase-service-account.json
+
+# Option 2: Replit/Cloud - JSON content as env var (preferred for hosted)
+# FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account","project_id":"..."}
 ```
 
-### 5. Get Firebase Admin SDK Credentials (Optional)
+### 5. Get Firebase Admin SDK Credentials (Required for Google Sign-In)
 
-For server-side token verification:
+For server-side token verification (needed for Google Sign-In):
 
 1. Go to Firebase Console → Project Settings → Service Accounts
 2. Click "Generate new private key"
 3. Download the JSON file
-4. Save it securely (add to `.gitignore`)
-5. Set `FIREBASE_CREDENTIALS_PATH` in your `.env` file
+
+**For Local Development:**
+- Save the JSON file as `data/firebase-service-account.json`
+- Add `FIREBASE_CREDENTIALS_PATH=data/firebase-service-account.json` to your `.env` file
+
+**For Replit/Cloud Deployment:**
+- In Replit, go to **Secrets** (lock icon in sidebar)
+- Add a new secret:
+  - **Key:** `FIREBASE_SERVICE_ACCOUNT_JSON`
+  - **Value:** Paste the **entire JSON content** (all of it, as one string)
+- The app will automatically use this instead of a file path
 
 ## Installation
 

@@ -139,8 +139,9 @@ def _render_google_sign_in():
     # We can sign in without Admin SDK, but we can't *verify* the token server-side without it.
     if not firebase_auth.is_firebase_admin_available():
         st.info(
-            "To enable Google Sign-In on this Streamlit server, set `FIREBASE_CREDENTIALS_PATH` "
-            "so we can verify Firebase ID tokens securely."
+            "**Google Sign-In requires Firebase Admin SDK credentials:**\n\n"
+            "**For Local:** Set `FIREBASE_CREDENTIALS_PATH=data/firebase-service-account.json` in `.env`\n\n"
+            "**For Replit:** Add `FIREBASE_SERVICE_ACCOUNT_JSON` as a Secret with the full JSON content"
         )
         return
 
