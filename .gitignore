@@ -36,8 +36,11 @@ ENV/
 
 # Environment variables and secrets
 .env
+.env.local
+.env.*.local
 config.py
 *.key
+*.secret
 
 # IDE
 .vscode/

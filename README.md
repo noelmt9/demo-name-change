@@ -46,7 +46,32 @@ streamlit run app.py
 
 ### First Time Setup
 
-1. **Configure API Keys**: 
+1. **Configure API Keys** (IMPORTANT: Use environment variables, never hardcode keys):
+   
+   **Option A: Using .env file (Recommended for local development)**
+   ```bash
+   # Create a .env file in the project root
+   cp .env.example .env
+   # Edit .env and add your API keys
+   ```
+   
+   Then install python-dotenv and load it in your app:
+   ```bash
+   pip install python-dotenv
+   ```
+   
+   **Option B: Using environment variables directly**
+   ```bash
+   # On macOS/Linux:
+   export VAPI_API_KEY="your-vapi-api-key"
+   export OPENAI_API_KEY="your-openai-api-key"
+   
+   # On Windows:
+   set VAPI_API_KEY=your-vapi-api-key
+   set OPENAI_API_KEY=your-openai-api-key
+   ```
+   
+   **Option C: Create config.py from template (Legacy - not recommended)**
    ```bash
    cp config.example.py config.py
    ```
