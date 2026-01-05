@@ -398,9 +398,57 @@ def main():
             from urllib.parse import quote
             login_url = f"{login_page_url}?return_to={quote(return_to, safe='')}"
             
-            st.title("🔐 Authentication Required")
-            st.markdown("Please login to access the VAPI Assistant Manager")
-            st.markdown(f"[🔵 Continue to Login Page]({login_url})")
+            # Styled authentication page matching login page design
+            logo_base64 = _get_logo_base64()
+            st.markdown(f"""
+            <div style="
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+                background: #000000;
+                font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            ">
+                <div style="
+                    background: #1a1a1a;
+                    padding: 3rem;
+                    border-radius: 12px;
+                    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+                    width: 100%;
+                    max-width: 420px;
+                    text-align: center;
+                ">
+                    {f'<div style="margin-bottom: 2rem;"><img src="data:image/png;base64,{logo_base64}" style="height: 50px; width: auto; object-fit: contain;" alt="skit.ai logo" /></div>' if logo_base64 else ''}
+                    <h1 style="
+                        color: #ffffff;
+                        font-size: 1.75rem;
+                        font-weight: 700;
+                        margin-top: 0;
+                        margin-bottom: 0.5rem;
+                    ">Welcome Back</h1>
+                    <p style="
+                        color: #9ca3af;
+                        font-size: 0.9rem;
+                        margin-bottom: 2rem;
+                    ">Sign in to access the VAPI Assistant Manager</p>
+                    <a href="{login_url}" style="
+                        display: inline-block;
+                        width: 100%;
+                        background: #2D83C5;
+                        color: white;
+                        text-decoration: none;
+                        padding: 0.75rem 1.5rem;
+                        border-radius: 6px;
+                        font-size: 1rem;
+                        font-weight: 600;
+                        transition: background-color 0.2s;
+                        text-align: center;
+                    " onmouseover="this.style.background='#2569a3'" onmouseout="this.style.background='#2D83C5'">
+                        Continue to Login Page
+                    </a>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
             st.stop()
             return
     
