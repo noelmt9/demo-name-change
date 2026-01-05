@@ -25,6 +25,32 @@ from services import firebase_auth
 from utils.prompt_parser import extract_variables, replace_variables, append_faq_prompt
 from components import auth_ui
 
+
+def is_local_environment():
+    """Check if running in local development environment."""
+    # Check environment variable for explicit local bypass
+    if os.getenv("BYPASS_AUTH", "").lower() in ("true", "1", "yes"):
+        return True
+    
+    # Check if FIREBASE_LOGIN_PAGE_URL is not set (indicates local dev)
+    if not os.getenv("FIREBASE_LOGIN_PAGE_URL"):
+        return True
+    
+    # Check if running on localhost (common for local Streamlit)
+    # Streamlit typically runs on localhost:8501
+    try:
+        # Try to detect if we're on a Replit domain
+        # If STREAMLIT_APP_URL is set and contains 'replit.app', we're on Replit
+        streamlit_url = os.getenv("STREAMLIT_APP_URL", "")
+        if streamlit_url and "replit.app" in streamlit_url:
+            return False
+    except:
+        pass
+    
+    # Default: assume local if no Replit indicators found
+    # This is safe because Replit should have env vars set
+    return True
+
 # Page configuration
 st.set_page_config(
     page_title="VAPI Assistant Manager",
@@ -146,40 +172,62 @@ def render_variables_tab():
 
 
 def main():
-    # Handle Firebase ID token from external login page
-    id_token = st.query_params.get("id_token")
-    if id_token and "user" not in st.session_state:
-        # Verify the token with Firebase Admin SDK
-        try:
-            firebase_auth.initialize_firebase_admin()
-            if firebase_auth.is_firebase_admin_available():
-                from firebase_admin import auth as fb_auth
-                decoded = fb_auth.verify_id_token(id_token)
-                
-                # Store user in session state
-                st.session_state["user"] = {
-                    "email": decoded.get("email"),
-                    "name": decoded.get("name", decoded.get("email", "").split("@")[0]),
-                    "uid": decoded.get("uid"),
-                    "auth_method": "google",
-                    "id_token": id_token,
-                    "email_verified": decoded.get("email_verified", False)
-                }
-                
-                # Clean URL by removing id_token parameter
+    # Local development bypass - skip authentication
+    if is_local_environment():
+        # Auto-login as a local dev user
+        if "user" not in st.session_state:
+            st.session_state["user"] = {
+                "email": "local@dev.local",
+                "name": "Local Developer",
+                "uid": "local-dev-user",
+                "auth_method": "local",
+                "email_verified": True
+            }
+    else:
+        # Production/Replit: Handle Firebase ID token from external login page
+        id_token = st.query_params.get("id_token")
+        if id_token and "user" not in st.session_state:
+            # Verify the token with Firebase Admin SDK
+            try:
+                firebase_auth.initialize_firebase_admin()
+                if firebase_auth.is_firebase_admin_available():
+                    from firebase_admin import auth as fb_auth
+                    decoded = fb_auth.verify_id_token(id_token)
+                    
+                    # Store user in session state
+                    st.session_state["user"] = {
+                        "email": decoded.get("email"),
+                        "name": decoded.get("name", decoded.get("email", "").split("@")[0]),
+                        "uid": decoded.get("uid"),
+                        "auth_method": "google" if decoded.get("firebase", {}).get("sign_in_provider") == "google.com" else "email",
+                        "id_token": id_token,
+                        "email_verified": decoded.get("email_verified", False)
+                    }
+                    
+                    # Clean URL by removing id_token parameter
+                    st.query_params.pop("id_token", None)
+                    st.success(f"Welcome, {st.session_state['user']['name']}!")
+                    st.rerun()
+                else:
+                    st.error("Firebase Admin SDK not initialized. Cannot verify token.")
+            except Exception as e:
+                st.error(f"Failed to verify token: {str(e)}")
                 st.query_params.pop("id_token", None)
-                st.success(f"Welcome, {st.session_state['user']['name']}!")
-                st.rerun()
-            else:
-                st.error("Firebase Admin SDK not initialized. Cannot verify token.")
-        except Exception as e:
-            st.error(f"Failed to verify token: {str(e)}")
-            st.query_params.pop("id_token", None)
-    
-    # Check authentication
-    if not auth.is_authenticated():
-        auth_ui.render_login_page()
-        return
+        
+        # Check authentication (only in production)
+        if not auth.is_authenticated():
+            # Redirect to external login page
+            login_page_url = os.getenv("FIREBASE_LOGIN_PAGE_URL", "https://vapi-assistant-builder-login.replit.app")
+            return_to = os.getenv("STREAMLIT_APP_URL", "https://vapi-assistant-builder.replit.app")
+            
+            from urllib.parse import quote
+            login_url = f"{login_page_url}?return_to={quote(return_to, safe='')}"
+            
+            st.title("🔐 Authentication Required")
+            st.markdown("Please login to access the VAPI Assistant Manager")
+            st.markdown(f"[🔵 Continue to Login Page]({login_url})")
+            st.stop()
+            return
     
     st.title("🎙️ VAPI Assistant Manager")
     st.markdown("Manage your voice assistant configurations")
