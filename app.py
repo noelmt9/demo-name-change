@@ -495,36 +495,59 @@ def main():
             st.error(f"Failed to load assistants: {str(e)}")
             st.stop()
     
-    # Assistant selector
+    # Assistant selector - filter to only show assistants with "API" in the name
     assistants = st.session_state[ASSISTANTS_STORAGE_KEY]
     if not assistants:
         st.warning("No assistants found. Make sure your API key is correct.")
         st.stop()
     
+    # Filter assistants to only include those with "API" in the name (case-insensitive)
+    filtered_assistants = [
+        asst for asst in assistants 
+        if asst.get('name', '').upper().find('API') != -1
+    ]
+    
+    if not filtered_assistants:
+        st.warning("No assistants found with 'API' in the name.")
+        st.stop()
+    
     assistant_options = {
         f"{asst.get('name', 'Unnamed')} ({asst.get('id', '')})": asst.get('id')
-        for asst in assistants
+        for asst in filtered_assistants
     }
+    
+    # Get current selected assistant ID
+    current_assistant = st.session_state.get(SELECTED_ASSISTANT_STORAGE_KEY)
+    current_id = current_assistant.get('id') if current_assistant else None
+    
+    # Find the default option based on current selection
+    default_index = 0
+    if current_id:
+        for idx, (name, asst_id) in enumerate(assistant_options.items()):
+            if asst_id == current_id:
+                default_index = idx
+                break
     
     selected_name = st.selectbox(
         "Select Assistant",
         options=list(assistant_options.keys()),
+        index=default_index,
         key="assistant_selector"
     )
     
     selected_id = assistant_options[selected_name]
     
     # Load assistant data when selection changes
-    current_assistant = st.session_state[SELECTED_ASSISTANT_STORAGE_KEY]
     if (current_assistant is None or current_assistant.get('id') != selected_id):
         with st.spinner("Loading assistant configuration..."):
             load_assistant_data(selected_id)
+            st.rerun()  # Refresh the page to show the loaded assistant
     
     if not st.session_state[SELECTED_ASSISTANT_STORAGE_KEY]:
         st.stop()
     
     # Main content - Variables tab
-        render_variables_tab()
+    render_variables_tab()
     
     # Create New Assistant Section
     st.divider()
