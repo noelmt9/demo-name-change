@@ -3,6 +3,8 @@
 import streamlit as st
 import os
 import copy
+import base64
+from pathlib import Path
 from typing import Dict, List
 from dotenv import load_dotenv
 
@@ -24,6 +26,15 @@ from services import auth
 from services import firebase_auth
 from utils.prompt_parser import extract_variables, replace_variables, append_faq_prompt
 from components import auth_ui
+
+
+def _get_logo_base64():
+    """Load and encode the logo image as base64."""
+    logo_path = Path(__file__).parent / "static" / "logo.png"
+    if logo_path.exists():
+        with open(logo_path, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    return ""
 
 
 def is_local_environment():
@@ -55,8 +66,172 @@ def is_local_environment():
 st.set_page_config(
     page_title="VAPI Assistant Manager",
     page_icon="🎙️",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
+
+# Inject custom CSS for Skit.ai branding
+st.markdown("""
+<style>
+    /* Black background */
+    .stApp {
+        background: #000000;
+    }
+    
+    /* Header with logo */
+    .main-header {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem 0;
+        margin-bottom: 2rem;
+        position: relative;
+    }
+    
+    .logo-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .logo-img {
+        height: 45px;
+        width: auto;
+        object-fit: contain;
+        display: block;
+    }
+    
+    /* Main container styling */
+    .main .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+        background: #1a1a1a;
+        border-radius: 8px;
+    }
+    
+    /* Title styling with brand colors */
+    h1 {
+        color: #ffffff;
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    
+    h2, h3 {
+        color: #ffffff;
+        font-weight: 600;
+    }
+    
+    /* Text color for readability on black background */
+    p, label, .stMarkdown {
+        color: #e5e7eb;
+    }
+    
+    /* Primary button styling - brand blue */
+    .stButton > button {
+        background: #2D83C5;
+        color: white;
+        border-radius: 6px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+        border: none;
+        transition: all 0.2s;
+    }
+    
+    .stButton > button:hover {
+        background: #2569a3;
+        box-shadow: 0 2px 8px rgba(45, 131, 197, 0.3);
+    }
+    
+    /* Secondary button styling */
+    button[kind="secondary"] {
+        background: white;
+        color: #2D83C5;
+        border: 1px solid #2D83C5;
+    }
+    
+    button[kind="secondary"]:hover {
+        background: #f0f7ff;
+    }
+    
+    /* Input styling */
+    .stTextInput > div > div > input,
+    .stTextArea > div > div > textarea,
+    .stSelectbox > div > div > select {
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        padding: 0.5rem 0.75rem;
+    }
+    
+    .stTextInput > div > div > input:focus,
+    .stTextArea > div > div > textarea:focus,
+    .stSelectbox > div > div > select:focus {
+        border-color: #2D83C5;
+        box-shadow: 0 0 0 3px rgba(45, 131, 197, 0.1);
+    }
+    
+    /* Sidebar styling */
+    .css-1d391kg {
+        background: #f9fafb;
+    }
+    
+    /* Links */
+    a {
+        color: #2D83C5;
+    }
+    
+    a:hover {
+        color: #2569a3;
+    }
+    
+    /* Success/Error messages */
+    .stSuccess {
+        background-color: #d1fae5;
+        border-left: 4px solid #10b981;
+    }
+    
+    .stError {
+        background-color: #fee2e2;
+        border-left: 4px solid #ef4444;
+    }
+    
+    .stInfo {
+        background-color: #dbeafe;
+        border-left: 4px solid #2D83C5;
+    }
+    
+    /* Expander styling */
+    .streamlit-expanderHeader {
+        color: #ffffff;
+        font-weight: 600;
+    }
+    
+    /* Sidebar text */
+    .css-1d391kg, .css-1d391kg p, .css-1d391kg label {
+        color: #e5e7eb;
+    }
+    
+    /* Tabs styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 0.5rem;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        color: #6b7280;
+        font-weight: 500;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        color: #2D83C5;
+    }
+    
+    /* Remove Streamlit default styling */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+</style>
+""", unsafe_allow_html=True)
+
 
 # Initialize session state
 if ASSISTANTS_STORAGE_KEY not in st.session_state:
@@ -229,7 +404,16 @@ def main():
             st.stop()
             return
     
-    st.title("🎙️ VAPI Assistant Manager")
+    # Add logo and header
+    st.markdown("""
+    <div class="main-header">
+        <div class="logo-container">
+            <img src="data:image/png;base64,{}" class="logo-img" alt="skit.ai logo" />
+        </div>
+    </div>
+    """.format(_get_logo_base64()), unsafe_allow_html=True)
+    
+    st.markdown("### 🎙️ VAPI Assistant Manager")
     st.markdown("Manage your voice assistant configurations")
     
     # Render logout button in sidebar
