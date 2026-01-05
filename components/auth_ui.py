@@ -182,6 +182,29 @@ def _render_google_sign_in():
       const firebaseConfig = {json.dumps(js_config)};
       const app = initializeApp(firebaseConfig);
       const auth = getAuth(app);
+      
+      // Debug: Log both iframe and parent window origins
+      const topHost = window.top?.location?.host || "N/A";
+      const topOrigin = window.top?.location?.origin || "N/A";
+      const frameHost = window.location.host || "N/A";
+      const frameOrigin = window.location.origin || "N/A";
+      
+      console.log("🔍 Firebase Auth Debug Info:");
+      console.log("  Top (parent) host:", topHost);
+      console.log("  Top (parent) origin:", topOrigin);
+      console.log("  Frame (iframe) host:", frameHost);
+      console.log("  Frame (iframe) origin:", frameOrigin);
+      console.log("  Firebase authDomain:", firebaseConfig.authDomain);
+      
+      // Configure auth to use parent window's origin for redirects
+      // This is critical when running in an iframe
+      if (window.top && window.top.location && window.top.location.origin !== window.location.origin) {{
+        // We're in an iframe - Firebase will use the iframe's origin by default
+        // We need to ensure the parent origin is authorized
+        console.log("⚠️ Running in iframe - parent origin differs from iframe origin");
+        console.log("⚠️ Make sure this domain is in Firebase Authorized Domains:", topHost);
+      }}
+      
       const provider = new GoogleAuthProvider();
       
       // Get the parent window's URL (the actual Streamlit app, not the iframe)
@@ -196,12 +219,11 @@ def _render_google_sign_in():
         statusEl.style.color = isError ? "#b00020" : "#666";
       }}
 
-      // Helpful debug info for hosted environments (e.g. Replit): shows the exact origin
-      // that must be added to Firebase Auth -> Authorized domains.
+      // Helpful debug info: shows both iframe and parent origins
       const parentOrigin = window.top.location.origin;
       const parentHost = window.top.location.host;
       setStatus(
-        `⚠️ Add this to Firebase Authorized Domains: "${{parentHost}}" or "${{parentOrigin}}"`
+        `Parent: "${{parentHost}}" | Frame: "${{frameHost}}" | Add PARENT to Firebase Authorized Domains`
       );
 
       async function finishWithIdToken(user) {{
@@ -254,25 +276,42 @@ def _render_google_sign_in():
           btn.disabled = true;
           btn.innerText = "Redirecting…";
           
+          console.log("🚀 Initiating Google sign-in redirect...");
+          console.log("  Current location:", window.location.href);
+          console.log("  Top location:", window.top.location.href);
+          console.log("  Auth domain:", firebaseConfig.authDomain);
+          
           // Always use redirect (more reliable in iframe/embedded contexts)
+          // Note: Firebase will redirect back to the CURRENT window's origin
+          // Since we're in an iframe, this might be the issue
           await signInWithRedirect(auth, provider);
           // Note: After redirect, user will be redirected back and getRedirectResult will handle it
         }} catch (e) {{
           const code = e?.code ? String(e.code) : "";
           const msg = e?.message ? String(e.message) : String(e);
-          console.error("Google sign-in redirect error:", e);
+          console.error("❌ Google sign-in redirect error:", e);
+          console.error("  Error code:", code);
+          console.error("  Error message:", msg);
+          console.error("  Current host:", window.location.host);
+          console.error("  Top host:", window.top?.location?.host);
 
           // Check for unauthorized domain error
           if (code === "auth/unauthorized-domain" || msg.includes("unauthorized") || msg.includes("domain")) {{
+            const detectedHost = window.location.host !== "N/A" ? window.location.host : topHost;
             setStatus(
               `❌ Unauthorized Domain Error\\n\\n` +
-              `Add "${{parentHost}}" to Firebase Authorized Domains:\\n` +
+              `Firebase detected: "${{detectedHost}}"\\n` +
+              `Parent window: "${{topHost}}"\\n` +
+              `\\n` +
+              `Add BOTH to Firebase Authorized Domains:\\n` +
               `1. Go to Firebase Console → Authentication → Settings\\n` +
               `2. Scroll to "Authorized domains"\\n` +
               `3. Click "Add domain"\\n` +
-              `4. Enter: "${{parentHost}}"\\n` +
-              `5. Click "Add"\\n` +
-              `6. Refresh this page and try again`,
+              `4. Add: "${{topHost}}" (parent)\\n` +
+              `5. Add: "${{detectedHost}}" (if different)\\n` +
+              `6. Click "Add" for each\\n` +
+              `7. Wait 2-3 minutes for changes to propagate\\n` +
+              `8. Refresh this page and try again`,
               true
             );
           }} else {{
