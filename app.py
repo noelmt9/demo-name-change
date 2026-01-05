@@ -21,6 +21,7 @@ from config import (
 from services import vapi
 from services import openai_service
 from services import auth
+from services import firebase_auth
 from utils.prompt_parser import extract_variables, replace_variables, append_faq_prompt
 from components import auth_ui
 
@@ -145,6 +146,36 @@ def render_variables_tab():
 
 
 def main():
+    # Handle Firebase ID token from external login page
+    id_token = st.query_params.get("id_token")
+    if id_token and "user" not in st.session_state:
+        # Verify the token with Firebase Admin SDK
+        try:
+            firebase_auth.initialize_firebase_admin()
+            if firebase_auth.is_firebase_admin_available():
+                from firebase_admin import auth as fb_auth
+                decoded = fb_auth.verify_id_token(id_token)
+                
+                # Store user in session state
+                st.session_state["user"] = {
+                    "email": decoded.get("email"),
+                    "name": decoded.get("name", decoded.get("email", "").split("@")[0]),
+                    "uid": decoded.get("uid"),
+                    "auth_method": "google",
+                    "id_token": id_token,
+                    "email_verified": decoded.get("email_verified", False)
+                }
+                
+                # Clean URL by removing id_token parameter
+                st.query_params.pop("id_token", None)
+                st.success(f"Welcome, {st.session_state['user']['name']}!")
+                st.rerun()
+            else:
+                st.error("Firebase Admin SDK not initialized. Cannot verify token.")
+        except Exception as e:
+            st.error(f"Failed to verify token: {str(e)}")
+            st.query_params.pop("id_token", None)
+    
     # Check authentication
     if not auth.is_authenticated():
         auth_ui.render_login_page()

@@ -1,6 +1,9 @@
 """Authentication UI components for Streamlit."""
 
 import json
+import os
+from pathlib import Path
+from urllib.parse import urlencode
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -129,205 +132,108 @@ def render_register_form():
         st.rerun()
 
 def _render_google_sign_in():
-    """Render Google Sign-In via Firebase Web SDK (no separate Google OAuth env vars)."""
+    """Render Google Sign-In link to external login page."""
     if not firebase_auth.is_firebase_configured():
         return
 
     st.markdown("---")
     st.markdown("**Or continue with:**")
 
-    # We can sign in without Admin SDK, but we can't *verify* the token server-side without it.
-    if not firebase_auth.is_firebase_admin_available():
-        st.info(
-            "**Google Sign-In requires Firebase Admin SDK credentials:**\n\n"
-            "**For Local:** Set `FIREBASE_CREDENTIALS_PATH=data/firebase-service-account.json` in `.env`\n\n"
-            "**For Replit:** Add `FIREBASE_SERVICE_ACCOUNT_JSON` as a Secret with the full JSON content"
-        )
-        return
+    # Get the login page URL from environment or use default
+    login_page_url = os.getenv("FIREBASE_LOGIN_PAGE_URL", "https://vapi-login.replit.app")
+    
+    # Get the current Streamlit app URL for return redirect
+    # For Replit, construct from known info
+    try:
+        # Try to get from environment (set in Replit)
+        return_to = os.getenv("STREAMLIT_APP_URL", "")
+        if not return_to:
+            # Fallback: construct from current request (may not work in all cases)
+            # For Replit, you should set STREAMLIT_APP_URL env var
+            return_to = "https://vapi-assistant-builder.replit.app"  # Update with your actual Replit URL
+    except:
+        return_to = "https://vapi-assistant-builder.replit.app"  # Update with your actual Replit URL
+    
+    # Build the login URL with return_to parameter
+    from urllib.parse import quote
+    login_url = f"{login_page_url}?return_to={quote(return_to, safe='')}"
+    
+    # Show a button/link that navigates to the login page
+    st.markdown(
+        f'<a href="{login_url}" style="text-decoration: none;">'
+        f'<button style="width: 100%; background: #4285F4; color: #fff; border: 0; border-radius: 8px; padding: 12px 14px; font-size: 16px; cursor: pointer;">'
+        f'🔵 Continue with Google'
+        f'</button></a>',
+        unsafe_allow_html=True
+    )
 
-    config = firebase_auth.get_firebase_config()
-    # Firebase JS only needs these keys; keep payload minimal.
-    js_config = {
-        "apiKey": config.get("apiKey", ""),
-        "authDomain": config.get("authDomain", ""),
-        "projectId": config.get("projectId", ""),
-        "appId": config.get("appId", ""),
-    }
 
-    html = f"""
-<!DOCTYPE html>
+def _build_inline_auth_url(config: dict, return_url: str = "") -> str:
+    """Build HTML content for Firebase auth (will be used in blob URL to allow storage access)."""
+    # Read the HTML template
+    html_path = Path(__file__).parent.parent / "static" / "firebase_auth.html"
+    
+    if html_path.exists():
+        with open(html_path, "r", encoding="utf-8") as f:
+            html_content = f.read()
+    else:
+        # Fallback: minimal inline HTML
+        html_content = """<!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-  </head>
-  <body style="margin:0;padding:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
-    <button id="googleBtn" style="
-      width: 100%;
-      background: #4285F4;
-      color: #fff;
-      border: 0;
-      border-radius: 8px;
-      padding: 12px 14px;
-      font-size: 16px;
-      cursor: pointer;">
-      Continue with Google
-    </button>
-    <div id="status" style="margin-top:8px;font-size:12px;color:#666;line-height:1.35;word-break:break-word;"></div>
-
-    <script type="module">
-      import {{ initializeApp }} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-      import {{ getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult }} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-
-      const firebaseConfig = {json.dumps(js_config)};
-      const app = initializeApp(firebaseConfig);
-      const auth = getAuth(app);
-      
-      // Debug: Log both iframe and parent window origins
-      const topHost = window.top?.location?.host || "N/A";
-      const topOrigin = window.top?.location?.origin || "N/A";
-      const frameHost = window.location.host || "N/A";
-      const frameOrigin = window.location.origin || "N/A";
-      
-      console.log("🔍 Firebase Auth Debug Info:");
-      console.log("  Top (parent) host:", topHost);
-      console.log("  Top (parent) origin:", topOrigin);
-      console.log("  Frame (iframe) host:", frameHost);
-      console.log("  Frame (iframe) origin:", frameOrigin);
-      console.log("  Firebase authDomain:", firebaseConfig.authDomain);
-      
-      // Configure auth to use parent window's origin for redirects
-      // This is critical when running in an iframe
-      if (window.top && window.top.location && window.top.location.origin !== window.location.origin) {{
-        // We're in an iframe - Firebase will use the iframe's origin by default
-        // We need to ensure the parent origin is authorized
-        console.log("⚠️ Running in iframe - parent origin differs from iframe origin");
-        console.log("⚠️ Make sure this domain is in Firebase Authorized Domains:", topHost);
-      }}
-      
-      const provider = new GoogleAuthProvider();
-      
-      // Get the parent window's URL (the actual Streamlit app, not the iframe)
-      // This is needed because components.html() runs in an iframe with about:srcdoc
-      let parentUrl = window.top.location.href.split('?')[0]; // Remove existing query params
-
-      const btn = document.getElementById("googleBtn");
-      const statusEl = document.getElementById("status");
-
-      function setStatus(text, isError = false) {{
-        statusEl.textContent = text || "";
-        statusEl.style.color = isError ? "#b00020" : "#666";
-      }}
-
-      // Helpful debug info: shows both iframe and parent origins
-      const parentOrigin = window.top.location.origin;
-      const parentHost = window.top.location.host;
-      setStatus(
-        `Parent: "${{parentHost}}" | Frame: "${{frameHost}}" | Add PARENT to Firebase Authorized Domains`
-      );
-
-      async function finishWithIdToken(user) {{
-        try {{
-          setStatus("Getting authentication token…");
-          const token = await user.getIdToken();
-          
-          if (!token) {{
-            setStatus("Error: No token received", true);
-            btn.innerText = "Google Sign-In failed — try again";
-            btn.disabled = false;
-            return;
-          }}
-          
-          setStatus("Redirecting back to app…");
-          // Get the parent window's URL (the actual Streamlit app, not the iframe)
-          const parentUrl = window.top.location.href.split('?')[0]; // Remove existing query params
-          const url = new URL(parentUrl);
-          url.searchParams.set("firebase_id_token", token);
-          // Redirect the parent window (the Streamlit app)
-          window.top.location.href = url.toString();
-        }} catch (error) {{
-          setStatus(`Error finishing sign-in: ${{error.message}}`, true);
-          btn.innerText = "Google Sign-In failed — try again";
-          btn.disabled = false;
-          console.error("finishWithIdToken error:", error);
-        }}
-      }}
-
-      // Handle redirect callback - if we returned from a redirect-based sign-in, complete it here.
-      try {{
-        const redirectResult = await getRedirectResult(auth);
-        if (redirectResult && redirectResult.user) {{
-          setStatus("Finishing Google sign-in…");
-          await finishWithIdToken(redirectResult.user);
-        }}
-      }} catch (e) {{
-        const code = e?.code ? String(e.code) : "";
-        const msg = e?.message ? String(e.message) : String(e);
-        if (code && code !== "auth/no-auth-event") {{
-          // Only show error if it's not the expected "no auth event" (which means no redirect happened yet)
-          setStatus(`Google redirect failed: ${{code}} ${{msg}}`, true);
-          console.error("Redirect result error:", e);
-        }}
-      }}
-
-      btn.addEventListener("click", async () => {{
-        try {{
-          setStatus("Redirecting to Google sign-in…");
-          btn.disabled = true;
-          btn.innerText = "Redirecting…";
-          
-          console.log("🚀 Initiating Google sign-in redirect...");
-          console.log("  Current location:", window.location.href);
-          console.log("  Top location:", window.top.location.href);
-          console.log("  Auth domain:", firebaseConfig.authDomain);
-          
-          // Always use redirect (more reliable in iframe/embedded contexts)
-          // Note: Firebase will redirect back to the CURRENT window's origin
-          // Since we're in an iframe, this might be the issue
-          await signInWithRedirect(auth, provider);
-          // Note: After redirect, user will be redirected back and getRedirectResult will handle it
-        }} catch (e) {{
-          const code = e?.code ? String(e.code) : "";
-          const msg = e?.message ? String(e.message) : String(e);
-          console.error("❌ Google sign-in redirect error:", e);
-          console.error("  Error code:", code);
-          console.error("  Error message:", msg);
-          console.error("  Current host:", window.location.host);
-          console.error("  Top host:", window.top?.location?.host);
-
-          // Check for unauthorized domain error
-          if (code === "auth/unauthorized-domain" || msg.includes("unauthorized") || msg.includes("domain")) {{
-            const detectedHost = window.location.host !== "N/A" ? window.location.host : topHost;
-            setStatus(
-              `❌ Unauthorized Domain Error\\n\\n` +
-              `Firebase detected: "${{detectedHost}}"\\n` +
-              `Parent window: "${{topHost}}"\\n` +
-              `\\n` +
-              `Add BOTH to Firebase Authorized Domains:\\n` +
-              `1. Go to Firebase Console → Authentication → Settings\\n` +
-              `2. Scroll to "Authorized domains"\\n` +
-              `3. Click "Add domain"\\n` +
-              `4. Add: "${{topHost}}" (parent)\\n` +
-              `5. Add: "${{detectedHost}}" (if different)\\n` +
-              `6. Click "Add" for each\\n` +
-              `7. Wait 2-3 minutes for changes to propagate\\n` +
-              `8. Refresh this page and try again`,
-              true
-            );
-          }} else {{
-            setStatus(`Google sign-in failed: ${{code}} ${{msg}}`, true);
-          }}
-
-          btn.innerText = "Google Sign-In failed — try again";
-          btn.disabled = false;
-        }}
-      }});
-    </script>
-  </body>
-</html>
-"""
-    # Give enough room for the status/error text.
-    components.html(html, height=110)
+<head><meta charset="UTF-8"><title>Google Sign-In</title></head>
+<body><div style="text-align:center;padding:2rem;"><p>Signing in with Google...</p></div>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+const urlParams = new URLSearchParams(window.location.search);
+const firebaseConfig = {
+    apiKey: urlParams.get('apiKey'),
+    authDomain: urlParams.get('authDomain'),
+    projectId: urlParams.get('projectId'),
+    appId: urlParams.get('appId')
+};
+const returnUrl = urlParams.get('returnUrl') || window.location.origin;
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
+(async function() {
+    try {
+        const result = await getRedirectResult(auth);
+        if (result && result.user) {
+            const token = await result.user.getIdToken();
+            const url = new URL(returnUrl || window.location.origin);
+            url.searchParams.set('firebase_id_token', token);
+            window.location.href = url.toString();
+        } else {
+            await signInWithRedirect(auth, provider);
+        }
+    } catch (error) {
+        document.body.innerHTML = '<div style="text-align:center;padding:2rem;"><p style="color:red;">Error: ' + (error.message || error.code) + '</p></div>';
+    }
+})();
+</script>
+</body></html>"""
+    
+    # Directly inject the config values into the HTML
+    api_key = config.get("apiKey", "")
+    auth_domain = config.get("authDomain", "")
+    project_id = config.get("projectId", "")
+    app_id = config.get("appId", "")
+    return_url_value = return_url if return_url else ""
+    
+    # Replace urlParams.get() calls with actual values
+    html_with_config = html_content
+    html_with_config = html_with_config.replace("urlParams.get('apiKey')", json.dumps(api_key))
+    html_with_config = html_with_config.replace("urlParams.get('authDomain')", json.dumps(auth_domain))
+    html_with_config = html_with_config.replace("urlParams.get('projectId')", json.dumps(project_id))
+    html_with_config = html_with_config.replace("urlParams.get('appId')", json.dumps(app_id))
+    if return_url_value:
+        html_with_config = html_with_config.replace("urlParams.get('returnUrl') || window.location.origin", json.dumps(return_url_value))
+    else:
+        html_with_config = html_with_config.replace("urlParams.get('returnUrl') || window.location.origin", "window.location.origin")
+    
+    # Return the HTML content (will be converted to blob URL in the calling function)
+    return html_with_config
 
 
 def _get_query_param(key: str) -> str | None:
