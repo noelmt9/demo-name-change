@@ -11,11 +11,21 @@ This guide will walk you through setting up a separate login page on Replit for 
 5. **Run it once** so it gets a URL like: `https://vapi-login.replit.app`
    - Note this URL - you'll need it later!
 
-## Step 2: Add the Login Page HTML
+## Step 2: Add the Enhanced Login Page HTML
 
 1. In your new Replit, you'll see an `index.html` file
-2. **Replace the entire contents** with the HTML code below
-3. **IMPORTANT**: Update the `firebaseConfig` object with your Firebase web config values:
+2. **Replace the entire contents** with the HTML code from `static/login_page.html` in this repository
+   - OR copy the HTML code below
+3. **IMPORTANT**: The Firebase config is already filled in, but verify it matches your Firebase project
+
+This enhanced login page includes:
+- ✅ Register tab (default) with email/password registration
+- ✅ Login tab with email/password login
+- ✅ Google Sign-In button on both tabs
+- ✅ Tab switching functionality
+- ✅ Form validation and error messages
+- ✅ Loading states
+- ✅ Matches your existing Streamlit login page design
 
 ```html
 <!doctype html>
