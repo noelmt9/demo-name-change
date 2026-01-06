@@ -222,6 +222,48 @@ st.markdown("""
         -webkit-text-fill-color: #e5e7eb !important;
     }
     
+    /* Fix textarea label and content overlap (Replit-specific fix) */
+    .stTextArea label {
+        position: relative !important;
+        z-index: 1 !important;
+        display: block !important;
+        margin-bottom: 0.5rem !important;
+    }
+    
+    .stTextArea > div {
+        position: relative !important;
+    }
+    
+    .stTextArea > div > div > textarea {
+        position: relative !important;
+        z-index: 1 !important;
+        background-color: #2d2d2d !important;
+    }
+    
+    /* Hide any placeholder or key text that might show through */
+    .stTextArea > div > div > textarea::placeholder {
+        opacity: 0 !important;
+        color: transparent !important;
+    }
+    
+    /* Ensure no text overlap in disabled textareas */
+    .stTextArea > div > div > textarea:disabled {
+        position: relative !important;
+        z-index: 1 !important;
+        background-color: #2d2d2d !important;
+        -webkit-text-fill-color: #e5e7eb !important;
+        color: #e5e7eb !important;
+        opacity: 1 !important;
+    }
+    
+    /* Fix any Streamlit internal text that might be showing */
+    div[data-testid="stTextArea"] label,
+    div[data-testid="stTextArea"] > div > label {
+        position: relative !important;
+        z-index: 2 !important;
+        background-color: transparent !important;
+    }
+    
     .stTextInput > div > div > input:focus,
     .stTextArea > div > div > textarea:focus,
     .stSelectbox > div > div > select:focus {
