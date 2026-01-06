@@ -127,7 +127,7 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-white">
       {apiKeyModalOpen && (
         <ApiKeyModal onClose={handleApiKeySaved} />
       )}
@@ -136,25 +136,25 @@ function App() {
         <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">VAPI Assistant Manager</h1>
-              <p className="text-gray-600 mt-1">Manage your voice assistant configurations</p>
+              <h1 className="text-2xl font-bold text-black">VAPI Assistant Manager</h1>
+              <p className="text-black mt-1">Manage your voice assistant configurations</p>
             </div>
             <button
               onClick={() => setApiKeyModalOpen(true)}
-              className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+              className="px-4 py-2 text-sm text-black border border-gray-300 rounded-md hover:bg-gray-50"
             >
               Settings
             </button>
           </div>
 
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-black mb-2">
               Select Assistant
             </label>
             <select
               value={selectedAssistantId}
               onChange={(e) => setSelectedAssistantId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2D83C5]"
               disabled={loading}
             >
               <option value="">-- Select an assistant --</option>
@@ -179,7 +179,7 @@ function App() {
           )}
 
           {loading && (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-black">
               Loading...
             </div>
           )}
@@ -204,7 +204,7 @@ function App() {
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="w-full px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed font-medium"
+                  className="w-full px-6 py-3 btn-gradient text-white rounded-md disabled:bg-gray-400 disabled:cursor-not-allowed font-medium"
                 >
                   {saving ? 'Saving...' : 'Save Changes'}
                 </button>
@@ -213,7 +213,7 @@ function App() {
           )}
 
           {!loading && !selectedAssistantId && (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-black">
               Select an assistant to begin managing its configuration
             </div>
           )}

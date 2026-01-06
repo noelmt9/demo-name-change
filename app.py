@@ -22,6 +22,7 @@ from config import (
 
 from services import vapi
 from services import openai_service
+from services import faq_generator
 from services import auth
 from services import firebase_auth
 from utils.prompt_parser import extract_variables, replace_variables, append_faq_prompt
@@ -73,9 +74,16 @@ st.set_page_config(
 # Inject custom CSS for Skit.ai branding
 st.markdown("""
 <style>
-    /* Black background */
+    @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap');
+    
+    /* Apply Manrope font to all elements */
+    * {
+        font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif !important;
+    }
+    
+    /* Grayish black background */
     .stApp {
-        background: #000000;
+        background: #1a1a1a;
     }
     
     /* Header with logo */
@@ -92,6 +100,10 @@ st.markdown("""
         display: flex;
         align-items: center;
         justify-content: center;
+        background: linear-gradient(135deg, #2D83C5 0%, #010066 100%);
+        padding: 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
     
     .logo-img {
@@ -122,15 +134,15 @@ st.markdown("""
         font-weight: 600;
     }
     
-    /* Text color for readability on black background */
+    /* Text color for readability on dark background */
     p, label, .stMarkdown {
         color: #e5e7eb;
     }
     
     /* Primary button styling - brand blue */
     .stButton > button {
-        background: #2D83C5;
-        color: white;
+        background: linear-gradient(135deg, #2D83C5 0%, #010066 100%) !important;
+        color: white !important;
         border-radius: 6px;
         padding: 0.75rem 1.5rem;
         font-weight: 500;
@@ -139,40 +151,88 @@ st.markdown("""
     }
     
     .stButton > button:hover {
-        background: #2569a3;
-        box-shadow: 0 2px 8px rgba(45, 131, 197, 0.3);
+        background: linear-gradient(135deg, #010066 0%, #2D83C5 100%) !important;
+        box-shadow: 0 2px 8px rgba(1, 0, 102, 0.3);
+        color: white !important;
     }
     
     /* Secondary button styling */
     button[kind="secondary"] {
-        background: white;
-        color: #2D83C5;
-        border: 1px solid #2D83C5;
+        background: linear-gradient(135deg, #2D83C5 0%, #010066 100%) !important;
+        color: white !important;
+        border: none;
     }
     
     button[kind="secondary"]:hover {
-        background: #f0f7ff;
+        background: linear-gradient(135deg, #010066 0%, #2D83C5 100%) !important;
+        color: white !important;
+    }
+    
+    /* All buttons should have white text */
+    button {
+        color: white !important;
+    }
+    
+    /* Ensure all button text is white */
+    .stButton > button,
+    button[type="button"],
+    button[type="submit"],
+    .stFormSubmitButton > button,
+    button[data-testid="baseButton-secondary"],
+    button[data-testid="baseButton-primary"] {
+        color: white !important;
+    }
+    
+    button[type="button"] {
+        background: linear-gradient(135deg, #2D83C5 0%, #010066 100%) !important;
+        color: white !important;
+    }
+    
+    button[type="button"]:hover {
+        background: linear-gradient(135deg, #010066 0%, #2D83C5 100%) !important;
+        color: white !important;
+    }
+    
+    /* Ensure button text stays white on hover */
+    .stButton > button:hover,
+    button[type="button"]:hover,
+    button[type="submit"]:hover,
+    .stFormSubmitButton > button:hover,
+    button[data-testid="baseButton-secondary"]:hover,
+    button[data-testid="baseButton-primary"]:hover {
+        color: white !important;
     }
     
     /* Input styling */
     .stTextInput > div > div > input,
     .stTextArea > div > div > textarea,
     .stSelectbox > div > div > select {
-        border: 1px solid #d1d5db;
+        border: 1px solid #4b5563;
         border-radius: 6px;
         padding: 0.5rem 0.75rem;
+        color: #ffffff !important;
+        background-color: #2d2d2d !important;
+    }
+    
+    /* Disabled textarea styling - ensure text is visible */
+    .stTextArea > div > div > textarea:disabled {
+        color: #e5e7eb !important;
+        background-color: #2d2d2d !important;
+        opacity: 1 !important;
+        -webkit-text-fill-color: #e5e7eb !important;
     }
     
     .stTextInput > div > div > input:focus,
     .stTextArea > div > div > textarea:focus,
     .stSelectbox > div > div > select:focus {
         border-color: #2D83C5;
-        box-shadow: 0 0 0 3px rgba(45, 131, 197, 0.1);
+        box-shadow: 0 0 0 3px rgba(45, 131, 197, 0.3);
+        color: #ffffff !important;
     }
     
     /* Sidebar styling */
     .css-1d391kg {
-        background: #f9fafb;
+        background: #1a1a1a;
     }
     
     /* Links */
@@ -181,23 +241,48 @@ st.markdown("""
     }
     
     a:hover {
-        color: #2569a3;
+        color: #010066;
     }
     
     /* Success/Error messages */
     .stSuccess {
-        background-color: #d1fae5;
-        border-left: 4px solid #10b981;
+        background-color: #1a1a1a !important;
+        border: 1px solid #10b981;
+        color: #e5e7eb !important;
+    }
+    
+    .stSuccess * {
+        color: #e5e7eb !important;
     }
     
     .stError {
-        background-color: #fee2e2;
-        border-left: 4px solid #ef4444;
+        background-color: #1a1a1a !important;
+        border: 1px solid #ef4444;
+        color: #e5e7eb !important;
+    }
+    
+    .stError * {
+        color: #e5e7eb !important;
     }
     
     .stInfo {
-        background-color: #dbeafe;
-        border-left: 4px solid #2D83C5;
+        background-color: #1a1a1a !important;
+        border: 1px solid #2D83C5;
+        color: #e5e7eb !important;
+    }
+    
+    .stInfo * {
+        color: #e5e7eb !important;
+    }
+    
+    .stWarning {
+        background-color: #1a1a1a !important;
+        border: 1px solid #f59e0b;
+        color: #e5e7eb !important;
+    }
+    
+    .stWarning * {
+        color: #e5e7eb !important;
     }
     
     /* Expander styling */
@@ -217,12 +302,67 @@ st.markdown("""
     }
     
     .stTabs [data-baseweb="tab"] {
-        color: #6b7280;
+        color: #e5e7eb;
         font-weight: 500;
     }
     
     .stTabs [aria-selected="true"] {
         color: #2D83C5;
+    }
+    
+    /* Ensure all text is light for dark background */
+    .stMarkdown, .stMarkdown p, .stMarkdown li, .stMarkdown ul, .stMarkdown ol {
+        color: #e5e7eb !important;
+    }
+    
+    /* Text input and textarea styling */
+    .stTextInput > div > div > input,
+    .stTextArea > div > div > textarea {
+        color: #ffffff !important;
+        background-color: #2d2d2d !important;
+    }
+    
+    /* Selectbox styling */
+    .stSelectbox > div > div > select {
+        color: #ffffff !important;
+        background-color: #2d2d2d !important;
+    }
+    
+    /* Expander content */
+    .streamlit-expanderContent {
+        background-color: #1a1a1a !important;
+        color: #e5e7eb !important;
+    }
+    
+    /* All Streamlit text elements */
+    .element-container, .stText, .stMarkdownContainer {
+        color: #e5e7eb !important;
+    }
+    
+    /* Text within boxes/containers */
+    .stTextArea textarea,
+    .stTextInput input,
+    div[data-testid="stTextArea"] textarea,
+    div[data-testid="stTextInput"] input {
+        color: #ffffff !important;
+    }
+    
+    /* Expander content */
+    .streamlit-expanderContent * {
+        color: #e5e7eb !important;
+    }
+    
+    /* Form submit buttons - use gradient */
+    .stFormSubmitButton > button,
+    button[data-testid="baseButton-secondary"] {
+        background: linear-gradient(135deg, #2D83C5 0%, #010066 100%) !important;
+        color: white !important;
+    }
+    
+    .stFormSubmitButton > button:hover,
+    button[data-testid="baseButton-secondary"]:hover {
+        background: linear-gradient(135deg, #010066 0%, #2D83C5 100%) !important;
+        color: white !important;
     }
     
     /* Remove Streamlit default styling */
@@ -250,6 +390,10 @@ if "first_message" not in st.session_state:
     st.session_state["first_message"] = ""
 if "editing_faq_index" not in st.session_state:
     st.session_state["editing_faq_index"] = None
+if "last_created_assistant_name" not in st.session_state:
+    st.session_state["last_created_assistant_name"] = None
+if "last_used_training_examples" not in st.session_state:
+    st.session_state["last_used_training_examples"] = None
 # Note: Template removed - now using trained writing style from utils/prompt_training.py
 
 
@@ -406,8 +550,8 @@ def main():
                 justify-content: center;
                 align-items: center;
                 min-height: 100vh;
-                background: #000000;
-                font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+                background: #1a1a1a;
+                font-family: 'Manrope', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             ">
                 <div style="
                     background: #1a1a1a;
@@ -417,6 +561,7 @@ def main():
                     width: 100%;
                     max-width: 420px;
                     text-align: center;
+                    border: 1px solid #4b5563;
                 ">
                     {f'<div style="margin-bottom: 2rem;"><img src="data:image/png;base64,{logo_base64}" style="height: 50px; width: auto; object-fit: contain;" alt="skit.ai logo" /></div>' if logo_base64 else ''}
                     <h1 style="
@@ -427,23 +572,23 @@ def main():
                         margin-bottom: 0.5rem;
                     ">Welcome Back</h1>
                     <p style="
-                        color: #9ca3af;
+                        color: #e5e7eb;
                         font-size: 0.9rem;
                         margin-bottom: 2rem;
                     ">Sign in to access the VAPI Assistant Manager</p>
                     <a href="{login_url}" style="
                         display: inline-block;
                         width: 100%;
-                        background: #2D83C5;
+                        background: linear-gradient(135deg, #2D83C5 0%, #010066 100%);
                         color: white;
                         text-decoration: none;
                         padding: 0.75rem 1.5rem;
                         border-radius: 6px;
                         font-size: 1rem;
                         font-weight: 600;
-                        transition: background-color 0.2s;
+                        transition: all 0.2s;
                         text-align: center;
-                    " onmouseover="this.style.background='#2569a3'" onmouseout="this.style.background='#2D83C5'">
+                    " onmouseover="this.style.background='linear-gradient(135deg, #010066 0%, #2D83C5 100%)'" onmouseout="this.style.background='linear-gradient(135deg, #2D83C5 0%, #010066 100%)'">
                         Continue to Login Page
                     </a>
                 </div>
@@ -461,7 +606,7 @@ def main():
     </div>
     """.format(_get_logo_base64()), unsafe_allow_html=True)
     
-    st.markdown("### 🎙️ VAPI Assistant Manager")
+    st.markdown("## VAPI Assistant Manager")
     st.markdown("Manage your voice assistant configurations")
     
     # Render logout button in sidebar
@@ -701,21 +846,19 @@ def main():
             # Generate FAQ Prompt Button
             st.markdown("---")
             st.subheader("Generate FAQ Prompt")
-            st.markdown("The AI will automatically learn from **all** your imported system prompts and generate FAQ prompts that match your writing style, tone, and structure.")
-            st.caption("💡 **Tip:** The AI will consider your existing prompt's flows and FAQ sections (shown above) to ensure consistency. Generated FAQs will be concise and only reference available flows.")
             
             if st.button("🤖 Generate FAQ Prompt", type="primary", use_container_width=True, key="generate_faq_prompt_inline"):
                 if not faqs:
                     st.error("Please add at least one FAQ before generating the prompt.")
                 else:
                     try:
-                        with st.spinner("Generating FAQ prompt with AI (using your writing style and existing prompt context)..."):
-                            generated_prompt = openai_service.generate_faq_prompt(
+                        with st.spinner("Generating FAQ prompt..."):
+                            generated_prompt = faq_generator.generate_faqs(
                                 faqs=faqs,
                                 existing_prompt=existing_prompt if existing_prompt else None
                             )
                             st.session_state[FAQ_PROMPT_STORAGE_KEY] = generated_prompt
-                            st.success("FAQ prompt generated successfully using your trained writing style!")
+                            st.success("FAQ prompt generated successfully!")
                             st.rerun()
                     except Exception as e:
                         st.error(f"Error generating FAQ prompt: {str(e)}")
@@ -723,14 +866,32 @@ def main():
             # Display generated FAQ prompt
             if st.session_state[FAQ_PROMPT_STORAGE_KEY]:
                 st.markdown("---")
-                st.subheader("Generated FAQ Prompt")
+                # Header with regenerate button
+                col_header1, col_header2 = st.columns([3, 1])
+                with col_header1:
+                    st.subheader("Generated FAQ Prompt")
+                with col_header2:
+                    if st.button("🔄 Regenerate", key="regenerate_faq_prompt", use_container_width=True):
+                        # Regenerate using RAG (will retrieve different examples)
+                        try:
+                            with st.spinner("Regenerating FAQ prompt..."):
+                                generated_prompt = faq_generator.generate_faqs(
+                                    faqs=faqs,
+                                    existing_prompt=existing_prompt if existing_prompt else None
+                                )
+                                st.session_state[FAQ_PROMPT_STORAGE_KEY] = generated_prompt
+                                st.success("FAQ prompt regenerated successfully!")
+                                st.rerun()
+                        except Exception as e:
+                            st.error(f"Error regenerating FAQ prompt: {str(e)}")
+                
                 st.text_area(
                     "Generated Prompt",
                     value=st.session_state[FAQ_PROMPT_STORAGE_KEY],
                     height=200,
                     key="generated_faq_prompt_display_inline",
-                    help="This is the prompt generated by OpenAI. It will be appended to the system prompt when you create the assistant."
-    )
+                    help="This prompt will be appended to the system prompt when you create the assistant."
+                )
     
     col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
@@ -829,7 +990,23 @@ def main():
                         
                         # Create the assistant
                         new_assistant = vapi.create_assistant(new_assistant_data)
-                        st.success(f"✅ Assistant '{assistant_name}' created successfully!")
+                        
+                        # Store the created assistant name for display
+                        created_name = assistant_name.strip()
+                        st.session_state["last_created_assistant_name"] = created_name
+                        
+                        # Display success message with assistant name and call button
+                        st.success(f"✅ Assistant '{created_name}' created successfully!")
+                        
+                        # Display assistant name and call button in a styled container
+                        st.markdown("---")
+                        st.markdown("### 🎉 Assistant Created")
+                        col1, col2 = st.columns([2, 1])
+                        with col1:
+                            st.markdown(f"**Assistant Name:** `{created_name}`")
+                        with col2:
+                            call_url = "https://llm-studio.skit.ai/experience-assistant?region=us"
+                            st.link_button("📞 Call Agent", call_url, use_container_width=True)
                         
                         # Refresh assistants list
                         st.session_state[ASSISTANTS_STORAGE_KEY] = vapi.list_assistants(limit=500)

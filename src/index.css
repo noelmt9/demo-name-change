@@ -11,4 +11,14 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Brand gradient button */
+.btn-gradient {
+  background: linear-gradient(135deg, #2D83C5 0%, #010066 100%);
+  transition: all 0.2s;
+}
+
+.btn-gradient:hover {
+  background: linear-gradient(135deg, #010066 0%, #2D83C5 100%);
+}
+
 

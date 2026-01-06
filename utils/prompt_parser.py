@@ -136,15 +136,15 @@ def extract_existing_faq_section(prompt: str) -> str:
 
 def count_existing_faqs(prompt: str) -> int:
     """
-    Count the number of existing FAQ items in the prompt.
-    FAQ items are identified by numbered items starting with "If the user" 
+    Find the highest numbered FAQ in the prompt to determine where to continue numbering.
+    FAQ items are identified by any numbered items (e.g., "1. ", "2. ", etc.)
     within the FAQ section.
     
     Args:
         prompt: The system prompt string
-        
+    
     Returns:
-        Number of existing FAQ items (0 if none found)
+        Highest FAQ number found (0 if none found)
     """
     # First extract the FAQ section
     faq_section = extract_existing_faq_section(prompt)
@@ -152,10 +152,18 @@ def count_existing_faqs(prompt: str) -> int:
     if not faq_section:
         return 0
     
-    # Count numbered items that start with "If the user" within the FAQ section
-    faq_count_pattern = r'^\d+\.\s+If the user'
+    # Find all numbered items in the FAQ section
+    # Pattern matches: "1. ", "2. ", "10. ", etc. at the start of a line
+    # This matches any numbered FAQ, not just ones starting with "If the user"
+    faq_count_pattern = r'^(\d+)\.\s+'
     matches = re.findall(faq_count_pattern, faq_section, re.MULTILINE)
-    return len(matches)
+    
+    if not matches:
+        return 0
+    
+    # Extract the numbers and return the maximum (highest FAQ number)
+    numbers = [int(match) for match in matches]
+    return max(numbers)
 
 
 def append_faq_prompt(prompt: str, faq_prompt: str) -> str:
@@ -194,19 +202,32 @@ def append_faq_prompt(prompt: str, faq_prompt: str) -> str:
     
     if faq_start_index is not None:
         # FAQ section exists - insert the new FAQ content at the end of the FAQ section
+        # Split faq_prompt into lines for proper insertion
+        faq_prompt_lines = faq_prompt.split('\n')
+        
         if faq_end_index is not None:
             # Insert at the end of FAQ section, before the next section
             # Add the new FAQ content with proper spacing
             new_lines = (
                 lines[:faq_end_index] + 
                 [''] +  # Empty line for spacing
-                [faq_prompt] + 
+                faq_prompt_lines + 
                 [''] +  # Empty line for spacing
                 lines[faq_end_index:]
             )
         else:
-            # FAQ section goes to end of document - append to FAQ section
-            new_lines = lines + [''] + [faq_prompt]
+            # FAQ section goes to end of document - append within FAQ section
+            # Find the last non-empty line in the FAQ section
+            last_faq_line = len(lines) - 1
+            while last_faq_line > faq_start_index and not lines[last_faq_line].strip():
+                last_faq_line -= 1
+            
+            # Insert after the last FAQ content, before end of document
+            new_lines = (
+                lines[:last_faq_line + 1] + 
+                [''] +  # Empty line for spacing
+                faq_prompt_lines
+            )
         
         return '\n'.join(new_lines)
     else:

@@ -40,14 +40,14 @@ export function FAQManager({ faqs, onChange }: FAQManagerProps) {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-lg font-semibold">Custom FAQs</h3>
-          <p className="text-sm text-gray-600">
+          <h3 className="text-lg font-semibold text-black">Custom FAQs</h3>
+          <p className="text-sm text-black">
             Manage custom FAQ entries that will be injected into the system prompt.
           </p>
         </div>
         <button
           onClick={() => setShowAddForm(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          className="px-4 py-2 btn-gradient text-white rounded-md"
         >
           + Add FAQ
         </button>
@@ -56,25 +56,25 @@ export function FAQManager({ faqs, onChange }: FAQManagerProps) {
       {showAddForm && (
         <div className="bg-gray-50 rounded-lg p-4 space-y-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-black mb-1">
               User Trigger
             </label>
             <input
               type="text"
               value={newFAQ.trigger}
               onChange={(e) => setNewFAQ({ ...newFAQ, trigger: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2D83C5]"
               placeholder="What the user might say..."
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-black mb-1">
               Bot Response Instruction
             </label>
             <textarea
               value={newFAQ.instruction}
               onChange={(e) => setNewFAQ({ ...newFAQ, instruction: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2D83C5]"
               rows={2}
               placeholder="How the bot should respond..."
             />
@@ -91,7 +91,7 @@ export function FAQManager({ faqs, onChange }: FAQManagerProps) {
                 setShowAddForm(false);
                 setNewFAQ({ trigger: '', instruction: '' });
               }}
-              className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+              className="px-4 py-2 text-black border border-gray-300 rounded-md hover:bg-gray-50"
             >
               Cancel
             </button>
@@ -101,7 +101,7 @@ export function FAQManager({ faqs, onChange }: FAQManagerProps) {
 
       <div className="space-y-3">
         {faqs.length === 0 ? (
-          <div className="bg-gray-50 rounded-lg p-4 text-center text-gray-500">
+          <div className="bg-gray-50 rounded-lg p-4 text-center text-black">
             No custom FAQs yet. Click "Add FAQ" to create one.
           </div>
         ) : (
@@ -117,17 +117,17 @@ export function FAQManager({ faqs, onChange }: FAQManagerProps) {
                 <div>
                   <div className="flex justify-between items-start mb-2">
                     <div className="flex-1">
-                      <p className="font-medium text-gray-900">
+                      <p className="font-medium text-black">
                         If user asks: "{faq.trigger}"
                       </p>
-                      <p className="text-sm text-gray-600 mt-1">
+                      <p className="text-sm text-black mt-1">
                         → {faq.instruction}
                       </p>
                     </div>
                     <div className="flex gap-2 ml-4">
                       <button
                         onClick={() => setEditingId(faq.id)}
-                        className="px-3 py-1 text-sm text-blue-600 hover:text-blue-700"
+                        className="px-3 py-1 text-sm text-[#2D83C5] hover:text-[#010066]"
                       >
                         Edit
                       </button>
@@ -169,24 +169,24 @@ function EditFAQForm({ faq, onSave, onCancel }: EditFAQFormProps) {
   return (
     <div className="space-y-3">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-black mb-1">
           User Trigger
         </label>
         <input
           type="text"
           value={trigger}
           onChange={(e) => setTrigger(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2D83C5]"
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-black mb-1">
           Bot Response Instruction
         </label>
         <textarea
           value={instruction}
           onChange={(e) => setInstruction(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2D83C5]"
           rows={2}
         />
       </div>
@@ -199,7 +199,7 @@ function EditFAQForm({ faq, onSave, onCancel }: EditFAQFormProps) {
         </button>
         <button
           onClick={onCancel}
-          className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+          className="px-4 py-2 text-black border border-gray-300 rounded-md hover:bg-gray-50"
         >
           Cancel
         </button>
