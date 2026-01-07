@@ -228,16 +228,27 @@ st.markdown("""
         z-index: 1 !important;
         display: block !important;
         margin-bottom: 0.5rem !important;
+        padding: 0 !important;
+        line-height: 1.4 !important;
     }
     
     .stTextArea > div {
         position: relative !important;
+        overflow: visible !important;
+    }
+    
+    .stTextArea > div > div {
+        position: relative !important;
+        overflow: visible !important;
     }
     
     .stTextArea > div > div > textarea {
         position: relative !important;
         z-index: 1 !important;
         background-color: #2d2d2d !important;
+        padding: 0.5rem 0.75rem !important;
+        line-height: 1.5 !important;
+        overflow-y: auto !important;
     }
     
     /* Hide any placeholder or key text that might show through */
@@ -254,14 +265,44 @@ st.markdown("""
         -webkit-text-fill-color: #e5e7eb !important;
         color: #e5e7eb !important;
         opacity: 1 !important;
+        padding: 0.5rem 0.75rem !important;
+        line-height: 1.5 !important;
     }
     
     /* Fix any Streamlit internal text that might be showing */
     div[data-testid="stTextArea"] label,
-    div[data-testid="stTextArea"] > div > label {
+    div[data-testid="stTextArea"] > div > label,
+    div[data-testid="stTextArea"] > div > div > label {
         position: relative !important;
         z-index: 2 !important;
         background-color: transparent !important;
+        display: block !important;
+        margin-bottom: 0.5rem !important;
+    }
+    
+    /* Additional Replit-specific fixes - prevent any overlay text */
+    .stTextArea [class*="label"],
+    .stTextArea [class*="Label"] {
+        position: relative !important;
+        z-index: 2 !important;
+        background: transparent !important;
+        pointer-events: none !important;
+    }
+    
+    /* Ensure textarea content is on top */
+    .stTextArea textarea {
+        position: relative !important;
+        z-index: 3 !important;
+        background: #2d2d2d !important;
+    }
+    
+    /* Remove any pseudo-elements that might cause overlap */
+    .stTextArea::before,
+    .stTextArea::after,
+    .stTextArea > div::before,
+    .stTextArea > div::after {
+        display: none !important;
+        content: none !important;
     }
     
     .stTextInput > div > div > input:focus,

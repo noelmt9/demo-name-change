@@ -295,28 +295,54 @@ CRITICAL NUMBERING REQUIREMENT:
     }
     
     try:
-        response = client.chat.completions.create(
-            model=GENERATION_MODEL,
-            messages=[
-                {
-                    "role": "system",
-                    "content": scenario_prompt
+        # Try structured outputs first (for models that support it)
+        try:
+            response = client.chat.completions.create(
+                model=GENERATION_MODEL,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": scenario_prompt
+                    },
+                    {
+                        "role": "user",
+                        "content": user_prompt
+                    }
+                ],
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "faq_generation",
+                        "schema": json_schema
+                    }
                 },
-                {
-                    "role": "user",
-                    "content": user_prompt
-                }
-            ],
-            response_format={
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "faq_generation",
-                    "schema": json_schema
-                }
-            },
-            temperature=0.1,
-            max_completion_tokens=2000
-        )
+                temperature=0.1,
+                max_completion_tokens=2000
+            )
+        except Exception as structured_error:
+            # Fallback: Use json_object mode if json_schema is not supported
+            error_str = str(structured_error)
+            if "json_schema" in error_str.lower() or "response_format" in error_str.lower():
+                # Try with json_object mode instead
+                response = client.chat.completions.create(
+                    model=GENERATION_MODEL,
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": scenario_prompt + "\n\nIMPORTANT: You must respond with valid JSON only, following this exact structure: {\"faqs\": [{\"question\": \"...\", \"answer\": \"...\", \"generated_prompt\": \"...\", \"scenario_tags\": [...], \"confidence\": 0.9}]}"
+                        },
+                        {
+                            "role": "user",
+                            "content": user_prompt + "\n\nRemember: Respond with valid JSON only, no markdown, no code blocks."
+                        }
+                    ],
+                    response_format={"type": "json_object"},
+                    temperature=0.1,
+                    max_completion_tokens=2000
+                )
+            else:
+                # Re-raise if it's a different error
+                raise
         
         # Parse structured output
         result_json = json.loads(response.choices[0].message.content)
