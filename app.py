@@ -305,6 +305,27 @@ st.markdown("""
         content: none !important;
     }
     
+    /* Fix expander arrow icon appearing behind textarea */
+    .streamlit-expanderHeader span {
+        z-index: 0 !important;
+    }
+    
+    /* Ensure textarea content is above expander icons */
+    .stTextArea > div > div > textarea,
+    .stTextArea > div > div > textarea:disabled {
+        z-index: 10 !important;
+        position: relative !important;
+        background-color: #2d2d2d !important;
+    }
+    
+    /* Ensure textarea container is above expander elements */
+    .stTextArea,
+    .stTextArea > div,
+    .stTextArea > div > div {
+        z-index: 5 !important;
+        position: relative !important;
+    }
+    
     .stTextInput > div > div > input:focus,
     .stTextArea > div > div > textarea:focus,
     .stSelectbox > div > div > select:focus {
