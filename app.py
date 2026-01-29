@@ -387,14 +387,23 @@ st.markdown("""
         display: none !important;
     }
     
-    /* Fix expander arrow icon appearing behind textarea - version-independent */
-    /* Target the icon using data-testid (more stable across versions) */
+    /* HIDE expander arrow icon completely to prevent bleed-through */
+    /* Target the icon using data-testid and all possible selectors */
     [data-testid="stIconMaterial"],
-    .stExpander summary span,
+    .stExpander summary span[data-testid="stIconMaterial"],
     .stExpander summary [class*="Material"],
-    .stExpander summary [class*="arrow"] {
-        z-index: 0 !important;
-        position: relative !important;
+    .stExpander summary [class*="arrow"],
+    span[data-testid="stIconMaterial"][translate="no"],
+    .st-emotion-cache-zkd0x0,
+    .ejhh0er0,
+    span[color="inherit"][data-testid="stIconMaterial"],
+    .stExpander [translate="no"] {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        width: 0 !important;
+        height: 0 !important;
+        overflow: hidden !important;
     }
     
     /* Ensure expander header/summary doesn't interfere */
@@ -408,8 +417,16 @@ st.markdown("""
     .stExpander [data-testid="stExpanderDetails"],
     .stExpander details > div {
         position: relative !important;
-        z-index: 1 !important;
+        z-index: 100 !important;
         isolation: isolate !important; /* Creates new stacking context */
+        background: #1a1a1a !important; /* Solid background to cover any bleed-through */
+    }
+
+    /* Force all expander content to be above the arrow icon */
+    .stExpander [data-testid="stExpanderDetails"] *,
+    .stExpander details > div * {
+        position: relative !important;
+        z-index: 1 !important;
     }
     
     /* Ensure textarea content is above expander icons */
