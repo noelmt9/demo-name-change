@@ -288,14 +288,69 @@ st.markdown("""
         background: transparent !important;
         pointer-events: none !important;
     }
-    
+
     /* Ensure textarea content is on top */
     .stTextArea textarea {
         position: relative !important;
         z-index: 3 !important;
         background: #2d2d2d !important;
     }
-    
+
+    /* CRITICAL FIX: Prevent text overlap in expander sections (Replit-specific) */
+    .stExpander {
+        isolation: isolate !important;
+        position: relative !important;
+        clear: both !important;
+        overflow: visible !important;
+    }
+
+    /* Ensure expander header has proper spacing and doesn't overlap content */
+    .stExpander summary {
+        padding: 0.75rem 0 !important;
+        margin-bottom: 0.5rem !important;
+        display: block !important;
+        clear: both !important;
+    }
+
+    /* Ensure expander content container has proper isolation and spacing */
+    .stExpander > div,
+    .stExpander details,
+    .stExpander [data-testid="stExpanderDetails"] {
+        isolation: isolate !important;
+        position: relative !important;
+        z-index: 1 !important;
+        clear: both !important;
+        overflow: visible !important;
+        padding-top: 0.5rem !important;
+    }
+
+    /* Prevent any absolute/fixed positioned children from escaping */
+    .stExpander * {
+        max-width: 100% !important;
+    }
+
+    /* Fix for overlapping labels in expander context */
+    .stExpander label {
+        display: block !important;
+        position: relative !important;
+        z-index: auto !important;
+        margin-bottom: 0.5rem !important;
+        clear: both !important;
+        width: 100% !important;
+        line-height: 1.5 !important;
+    }
+
+    /* Ensure all form elements inside expanders have proper spacing */
+    .stExpander .stTextArea,
+    .stExpander .stTextInput,
+    .stExpander .stSelectbox {
+        margin-top: 0.5rem !important;
+        margin-bottom: 0.75rem !important;
+        display: block !important;
+        width: 100% !important;
+        clear: both !important;
+    }
+
     /* Remove any pseudo-elements that might cause overlap */
     .stTextArea::before,
     .stTextArea::after,
@@ -304,10 +359,57 @@ st.markdown("""
         display: none !important;
         content: none !important;
     }
+
+    /* CRITICAL: Hide any keyboard hints, dev IDs, or debugging text that might show */
+    [class*="keyboard"],
+    [id*="keyboard"],
+    [data-keyboard],
+    [class*="hint"],
+    [class*="debug"] {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+    }
+
+    /* Prevent any aria-labels or titles from rendering as visible text */
+    [aria-label]::before,
+    [aria-label]::after,
+    [title]::before,
+    [title]::after {
+        content: none !important;
+        display: none !important;
+    }
+
+    /* Ensure Streamlit key identifiers don't render visibly */
+    [data-testid]::before,
+    [data-testid]::after {
+        content: none !important;
+        display: none !important;
+    }
     
-    /* Fix expander arrow icon appearing behind textarea */
-    .streamlit-expanderHeader span {
+    /* Fix expander arrow icon appearing behind textarea - version-independent */
+    /* Target the icon using data-testid (more stable across versions) */
+    [data-testid="stIconMaterial"],
+    .stExpander summary span,
+    .stExpander summary [class*="Material"],
+    .stExpander summary [class*="arrow"] {
         z-index: 0 !important;
+        position: relative !important;
+    }
+    
+    /* Ensure expander header/summary doesn't interfere */
+    .stExpander summary,
+    .stExpander [data-testid="stExpander"] summary {
+        z-index: 0 !important;
+        position: relative !important;
+    }
+    
+    /* Ensure expander details container has proper stacking */
+    .stExpander [data-testid="stExpanderDetails"],
+    .stExpander details > div {
+        position: relative !important;
+        z-index: 1 !important;
+        isolation: isolate !important; /* Creates new stacking context */
     }
     
     /* Ensure textarea content is above expander icons */
@@ -316,6 +418,7 @@ st.markdown("""
         z-index: 10 !important;
         position: relative !important;
         background-color: #2d2d2d !important;
+        isolation: isolate !important; /* Creates new stacking context */
     }
     
     /* Ensure textarea container is above expander elements */
@@ -324,6 +427,12 @@ st.markdown("""
     .stTextArea > div > div {
         z-index: 5 !important;
         position: relative !important;
+    }
+    
+    /* Additional fix: ensure expander details content is isolated */
+    .stExpander [data-testid="stExpanderDetails"] .stTextArea {
+        position: relative !important;
+        z-index: 2 !important;
     }
     
     .stTextInput > div > div > input:focus,
@@ -436,6 +545,21 @@ st.markdown("""
     .streamlit-expanderContent {
         background-color: #1a1a1a !important;
         color: #e5e7eb !important;
+        line-height: 1.6 !important;
+        overflow: visible !important;
+        clear: both !important;
+    }
+
+    /* Force proper text rendering and prevent overlap in all Streamlit containers */
+    .streamlit-expanderContent > *,
+    .stExpander > div > *,
+    [data-testid="stExpanderDetails"] > * {
+        line-height: 1.6 !important;
+        margin-bottom: 0.75rem !important;
+        display: block !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        overflow: visible !important;
     }
     
     /* All Streamlit text elements */
