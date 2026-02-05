@@ -170,24 +170,24 @@ def append_faq_prompt(prompt: str, faq_prompt: str) -> str:
     """
     Insert the FAQ prompt into the existing FAQ section (at the end of the FAQ content),
     or append at the end if no FAQ section exists.
-    
+
     Args:
         prompt: The main system prompt
         faq_prompt: The FAQ prompt to insert/append
-        
+
     Returns:
         Combined prompt with FAQ content inserted into existing FAQ section
     """
     if not faq_prompt:
         return prompt
-    
+
     # Pattern to match FAQ headings
     faq_heading_pattern = r'^#{2,3}\s+FAQs?(?:\s+Workflows?)?[:\s]*$'
-    
+
     lines = prompt.split('\n')
     faq_start_index = None
     faq_end_index = None
-    
+
     # Find the FAQ section boundaries
     for i, line in enumerate(lines):
         if re.match(faq_heading_pattern, line, re.IGNORECASE):
@@ -199,19 +199,19 @@ def append_faq_prompt(prompt: str, faq_prompt: str) -> str:
                     # This is a different section heading, FAQ section ends here
                     faq_end_index = i
                     break
-    
+
     if faq_start_index is not None:
         # FAQ section exists - insert the new FAQ content at the end of the FAQ section
         # Split faq_prompt into lines for proper insertion
         faq_prompt_lines = faq_prompt.split('\n')
-        
+
         if faq_end_index is not None:
             # Insert at the end of FAQ section, before the next section
             # Add the new FAQ content with proper spacing
             new_lines = (
-                lines[:faq_end_index] + 
+                lines[:faq_end_index] +
                 [''] +  # Empty line for spacing
-                faq_prompt_lines + 
+                faq_prompt_lines +
                 [''] +  # Empty line for spacing
                 lines[faq_end_index:]
             )
@@ -221,23 +221,157 @@ def append_faq_prompt(prompt: str, faq_prompt: str) -> str:
             last_faq_line = len(lines) - 1
             while last_faq_line > faq_start_index and not lines[last_faq_line].strip():
                 last_faq_line -= 1
-            
+
             # Insert after the last FAQ content, before end of document
             new_lines = (
-                lines[:last_faq_line + 1] + 
+                lines[:last_faq_line + 1] +
                 [''] +  # Empty line for spacing
                 faq_prompt_lines
             )
-        
+
         return '\n'.join(new_lines)
     else:
         # No FAQ section exists - append at the end with a new FAQ heading
         # Determine appropriate heading level (use ## if most sections use ##, ### if they use ###)
         has_three_hash = any(re.match(r'^###\s+', line) for line in lines)
         heading_level = '###' if has_three_hash else '##'
-    
+
     # Append with proper spacing
     if prompt.endswith('\n'):
             return prompt + f'{heading_level} FAQs\n\n{faq_prompt}'
     else:
             return prompt + f'\n\n{heading_level} FAQs\n\n{faq_prompt}'
+
+
+def extract_explain_due_flow(prompt: str) -> str:
+    """
+    Extract the first message from the EXPLAIN DUE FLOW section.
+    Looks for "## EXPLAIN DUE FLOW" heading and extracts the opening paragraph
+    (the content between the heading and the first numbered item).
+
+    Args:
+        prompt: The system prompt string
+
+    Returns:
+        The opening message from EXPLAIN DUE FLOW, or empty string if not found
+    """
+    # Pattern to match EXPLAIN DUE FLOW heading (with optional colon and whitespace)
+    explain_due_heading_pattern = r'^#{2,3}\s+EXPLAIN DUE FLOW[:\s]*$'
+
+    lines = prompt.split('\n')
+    explain_due_start = None
+
+    # Find the EXPLAIN DUE FLOW section
+    for i, line in enumerate(lines):
+        if re.match(explain_due_heading_pattern, line, re.IGNORECASE):
+            explain_due_start = i
+            break
+
+    if explain_due_start is None:
+        return ""
+
+    # Extract content between the heading and the first numbered item
+    # This is the opening paragraph that contains the main explain due message
+    content_lines = []
+
+    for i in range(explain_due_start + 1, len(lines)):
+        line = lines[i]
+        line_stripped = line.strip()
+
+        # Stop if we hit another major heading
+        if re.match(r'^#{2,3}\s+', line):
+            break
+
+        # Stop if we hit the first numbered item (1.)
+        if re.match(r'^1\.\s+', line_stripped):
+            break
+
+        # Skip empty lines at the beginning
+        if not content_lines and not line_stripped:
+            continue
+
+        # Add this line to content
+        content_lines.append(line)
+
+    # Join and clean up the content
+    content = '\n'.join(content_lines).strip()
+    return content
+
+
+def replace_explain_due_flow(prompt: str, new_explain_due: str) -> str:
+    """
+    Replace the opening message in the EXPLAIN DUE FLOW section with new content.
+    This replaces the paragraph between the heading and the first numbered item.
+
+    Args:
+        prompt: The system prompt string
+        new_explain_due: The new explain due message
+
+    Returns:
+        Updated prompt with new explain due message
+    """
+    if not new_explain_due:
+        return prompt
+
+    # Pattern to match EXPLAIN DUE FLOW heading (with optional colon and whitespace)
+    explain_due_heading_pattern = r'^#{2,3}\s+EXPLAIN DUE FLOW[:\s]*$'
+
+    lines = prompt.split('\n')
+    explain_due_start = None
+    content_start = None
+    content_end = None
+
+    # Find the EXPLAIN DUE FLOW section
+    for i, line in enumerate(lines):
+        if re.match(explain_due_heading_pattern, line, re.IGNORECASE):
+            explain_due_start = i
+            break
+
+    if explain_due_start is None:
+        return prompt  # Section not found, return original
+
+    # Find the opening paragraph (between heading and first numbered item)
+    found_content_start = False
+    for i in range(explain_due_start + 1, len(lines)):
+        line = lines[i]
+        line_stripped = line.strip()
+
+        # Check if we've hit another major heading
+        if re.match(r'^#{2,3}\s+', line):
+            if found_content_start:
+                content_end = i
+            break
+
+        # Found the first numbered item - this is where content ends
+        if re.match(r'^1\.\s+', line_stripped):
+            content_end = i
+            break
+
+        # Skip empty lines before content starts
+        if not found_content_start and not line_stripped:
+            continue
+
+        # Mark the start of content
+        if not found_content_start and line_stripped:
+            content_start = i
+            found_content_start = True
+
+    if content_start is None:
+        # No content found between heading and item 1, insert after heading
+        content_start = explain_due_start + 1
+        content_end = content_start
+
+    if content_end is None:
+        # Content goes to end of document
+        content_end = len(lines)
+
+    # Rebuild the prompt with new content
+    new_lines = (
+        lines[:content_start] +
+        [''] +  # Empty line after heading
+        [new_explain_due] +
+        [''] +  # Empty line before next section
+        lines[content_end:]
+    )
+
+    return '\n'.join(new_lines)

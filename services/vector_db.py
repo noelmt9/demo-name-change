@@ -191,6 +191,63 @@ def search_examples(
         raise Exception(f"Failed to search vector DB: {str(e)}")
 
 
+def add_user_accepted_faq(
+    input_faqs: list,
+    generated_prompt: str,
+    user_email: str = None
+) -> str:
+    """
+    Add a user-accepted FAQ to the vector database for training feedback.
+
+    This improves future FAQ generations by including examples that users
+    found helpful.
+
+    Args:
+        input_faqs: List of FAQ dicts with 'trigger' and 'instruction' keys
+        generated_prompt: The generated prompt that was accepted
+        user_email: Optional email of the user who accepted it
+
+    Returns:
+        UUID of the added point
+    """
+    from services.embeddings import embed_text
+
+    client = get_client()
+    initialize_db()
+
+    # Combine all FAQ triggers and instructions for embedding
+    combined_text = ""
+    for faq in input_faqs:
+        combined_text += f"Q: {faq.get('trigger', '')}\nA: {faq.get('instruction', '')}\n"
+
+    embedding = embed_text(combined_text)
+
+    # Create point with metadata indicating this is user-accepted
+    point_id = str(uuid.uuid4())
+    point = PointStruct(
+        id=point_id,
+        vector=embedding,
+        payload={
+            "question": combined_text,
+            "answer": "User-accepted FAQ set",
+            "generated_prompt": generated_prompt,
+            "scenario_tags": ["user_accepted"],
+            "source_file": f"user_accepted_{user_email or 'anonymous'}",
+            "source": "user_accepted",
+            "input_faqs": input_faqs
+        }
+    )
+
+    try:
+        client.upsert(
+            collection_name=QDRANT_COLLECTION_NAME,
+            points=[point]
+        )
+        return point_id
+    except Exception as e:
+        raise Exception(f"Failed to add user-accepted FAQ to vector DB: {str(e)}")
+
+
 def bulk_load_training_examples() -> int:
     """
     Load all training examples from prompts/training_examples/ into vector DB.

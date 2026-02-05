@@ -73,6 +73,8 @@ def make_request(method: str, endpoint: str, data: Optional[Dict] = None, params
             response = requests.patch(url, headers=headers, json=data)
         elif method == "POST":
             response = requests.post(url, headers=headers, json=data)
+        elif method == "DELETE":
+            response = requests.delete(url, headers=headers)
         else:
             raise ValueError(f"Unsupported method: {method}")
         
@@ -190,13 +192,13 @@ def update_assistant(assistant_id: str, updates: Dict) -> bool:
 def create_assistant(assistant_data: Dict) -> Dict:
     """
     Create a new assistant.
-    
+
     Args:
         assistant_data: Dictionary containing assistant configuration
-    
+
     Returns:
         Created assistant dictionary
-    
+
     Raises:
         Exception: If request fails
     """
@@ -205,5 +207,25 @@ def create_assistant(assistant_data: Dict) -> Dict:
         return response.json()
     except requests.exceptions.RequestException as e:
         raise Exception(f"Failed to create assistant: {str(e)}")
+
+
+def delete_assistant(assistant_id: str) -> bool:
+    """
+    Delete an assistant from VAPI.
+
+    Args:
+        assistant_id: Unique identifier for the assistant to delete
+
+    Returns:
+        True if deletion was successful
+
+    Raises:
+        Exception: If request fails
+    """
+    try:
+        make_request("DELETE", f"/assistant/{assistant_id}")
+        return True
+    except requests.exceptions.RequestException as e:
+        raise Exception(f"Failed to delete assistant: {str(e)}")
 
 

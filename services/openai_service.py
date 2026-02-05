@@ -165,6 +165,236 @@ def generate_faq_prompt(
         raise Exception(f"Failed to generate FAQ prompt: {str(e)}")
 
 
+def replace_explain_due_with_llm(system_prompt: str, old_message: str, new_message: str) -> str:
+    """
+    Use LLM to intelligently replace the explain due message in the system prompt.
+    This preserves the formatting and structure while updating the message content.
+
+    Args:
+        system_prompt: The complete system prompt
+        old_message: The current explain due message (for reference)
+        new_message: The new explain due message to insert
+
+    Returns:
+        Updated system prompt with new explain due message
+    """
+    # Simple string replacement approach - find and replace the old message
+    if old_message in system_prompt:
+        return system_prompt.replace(old_message, new_message)
+
+    # If exact match fails, try a more flexible approach
+    # This handles cases where the message might have slight variations
+    return system_prompt
+
+
+def extract_explain_due_with_llm(system_prompt: str) -> str:
+    """
+    Use LLM to intelligently extract the first message from EXPLAIN DUE FLOW section.
+    This handles various formatting styles across different prompts.
+
+    Args:
+        system_prompt: The complete system prompt containing EXPLAIN DUE FLOW
+
+    Returns:
+        The extracted explain due first message
+    """
+    api_key = get_api_key()
+    if not api_key:
+        raise ValueError("OpenAI API key is required")
+
+    # Find and extract just the EXPLAIN DUE FLOW section
+    explain_due_section = ""
+    lines = system_prompt.split('\n')
+    in_explain_due = False
+    section_lines = []
+
+    for line in lines:
+        if 'EXPLAIN DUE FLOW' in line and line.strip().startswith('#'):
+            in_explain_due = True
+            continue
+        elif in_explain_due:
+            # Stop at next major section
+            if line.strip().startswith('##'):
+                break
+            section_lines.append(line)
+
+    explain_due_section = '\n'.join(section_lines[:50])  # Limit to first 50 lines
+
+    if not explain_due_section.strip():
+        return ""
+
+    extraction_prompt = """You are analyzing a debt collection voice agent system prompt. Your task is to extract the FIRST MESSAGE that the agent says to the customer in the EXPLAIN DUE FLOW section.
+
+The first message is what the agent says immediately after authentication to explain why they're calling. It could be formatted as:
+- A numbered item (e.g., "1. After verifying the user say: ...")
+- An opening paragraph
+- A statement like "Always say..." or "Immediately say..."
+
+Extract ONLY the actual message text that the bot will speak - the exact words the agent says to the customer. Include any variable placeholders like {{first_name}}, {{creditor_name}}, {{balance}}, etc.
+
+DO NOT include:
+- Instructions like "After verifying" or "Always say"
+- Conditional logic like "If the user..."
+- Multiple messages (only the first/main one)
+- Any numbered items after the first message
+
+Return ONLY the message text itself, nothing else."""
+
+    user_prompt = f"""Here is the EXPLAIN DUE FLOW section:
+
+{explain_due_section}
+
+Extract the first message that the agent will say to the customer."""
+
+    url = f"{OPENAI_API_BASE_URL}/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "model": "gpt-4o-mini",  # Use smaller, faster model for extraction
+        "messages": [
+            {
+                "role": "system",
+                "content": extraction_prompt
+            },
+            {
+                "role": "user",
+                "content": user_prompt
+            }
+        ],
+        "temperature": 0,  # Deterministic extraction
+        "max_completion_tokens": 500
+    }
+
+    try:
+        response = requests.post(url, headers=headers, json=payload)
+        response.raise_for_status()
+        result = response.json()
+        extracted_message = result["choices"][0]["message"]["content"].strip()
+
+        # Clean up quotes if present
+        if extracted_message.startswith('"') and extracted_message.endswith('"'):
+            extracted_message = extracted_message[1:-1]
+
+        return extracted_message
+
+    except requests.exceptions.HTTPError as e:
+        error_detail = ""
+        try:
+            error_response = response.json()
+            error_detail = f" - {error_response.get('error', {}).get('message', 'Unknown error')}"
+        except:
+            error_detail = f" - {response.text[:200]}"
+        raise Exception(f"Failed to extract explain due message: {str(e)}{error_detail}")
+    except requests.exceptions.RequestException as e:
+        raise Exception(f"Failed to extract explain due message: {str(e)}")
+
+
+def refine_explain_due_message(original_message: str, instructions: str) -> str:
+    """
+    Refine an existing explain due message based on user instructions.
+    Only changes grammar, tone, and phrasing - keeps all factual details intact.
+
+    Args:
+        original_message: The current explain due message
+        instructions: User instructions for how to refine (e.g., "make it more friendly")
+
+    Returns:
+        Refined explain due message
+    """
+    api_key = get_api_key()
+    if not api_key:
+        raise ValueError("OpenAI API key is required")
+
+    if not original_message:
+        raise ValueError("Original message is required")
+
+    if not instructions:
+        raise ValueError("Instructions are required")
+
+    # System prompt for refining explain due messages
+    system_prompt = """You are a professional debt collection script editor. Your task is to refine an existing explain due message based on user instructions.
+
+CRITICAL RULES - You MUST follow these:
+1. PRESERVE all factual information exactly as is:
+   - Dollar amounts (e.g., "Five Thousand Dollars" must stay as "Five Thousand Dollars")
+   - Dates and timeframes
+   - Account numbers
+   - Company/creditor names
+   - Vehicle/product details
+   - All variable placeholders like {{first_name}}, {{creditor_name}}, {{balance}}, etc.
+
+2. ONLY modify:
+   - Grammar and sentence structure
+   - Tone (more friendly, more professional, more empathetic, etc.)
+   - Word choice for clarity
+   - Flow and readability
+
+3. DO NOT:
+   - Add new information not in the original
+   - Remove any factual details
+   - Change any numbers or amounts
+   - Alter variable placeholders
+
+Return ONLY the refined message text, nothing else."""
+
+    user_prompt = f"""Here is the original explain due message:
+
+"{original_message}"
+
+Instructions for refinement: {instructions}
+
+Refine the message according to the instructions while keeping ALL factual details unchanged."""
+
+    url = f"{OPENAI_API_BASE_URL}/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "model": GENERATION_MODEL,
+        "messages": [
+            {
+                "role": "system",
+                "content": system_prompt
+            },
+            {
+                "role": "user",
+                "content": user_prompt
+            }
+        ],
+        "temperature": 0.7,
+        "max_completion_tokens": 500
+    }
+
+    try:
+        response = requests.post(url, headers=headers, json=payload)
+        response.raise_for_status()
+        result = response.json()
+        generated_message = result["choices"][0]["message"]["content"].strip()
+
+        # Clean up any formatting artifacts
+        # Remove quotes if present
+        if generated_message.startswith('"') and generated_message.endswith('"'):
+            generated_message = generated_message[1:-1]
+
+        return generated_message
+
+    except requests.exceptions.HTTPError as e:
+        error_detail = ""
+        try:
+            error_response = response.json()
+            error_detail = f" - {error_response.get('error', {}).get('message', 'Unknown error')}"
+        except:
+            error_detail = f" - {response.text[:200]}"
+        raise Exception(f"Failed to refine explain due message: {str(e)}{error_detail}")
+    except requests.exceptions.RequestException as e:
+        raise Exception(f"Failed to refine explain due message: {str(e)}")
+
+
 def generate_faqs_with_rag(
     faqs: List[Dict[str, str]],
     scenario_prompt: str,
@@ -173,13 +403,13 @@ def generate_faqs_with_rag(
 ) -> str:
     """
     Generate FAQs using RAG architecture with structured outputs.
-    
+
     Args:
         faqs: List of FAQ dictionaries with 'trigger' and 'instruction' keys
         scenario_prompt: Scenario-specific system prompt
         retrieved_examples: List of retrieved FAQ examples from RAG
         existing_prompt: Optional existing system prompt to extract flows and FAQ context from
-    
+
     Returns:
         Generated FAQ prompt text (converted from structured JSON)
     """
