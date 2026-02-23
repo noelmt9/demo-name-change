@@ -3,6 +3,7 @@
 import streamlit as st
 import os
 import base64
+import datetime
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -218,6 +219,8 @@ def render_auth_page():
 
 def handle_authentication():
     """Handle authentication flow. Returns True if authenticated."""
+    import extra_streamlit_components as stx
+
     if is_local_environment():
         if "user" not in st.session_state:
             st.session_state["user"] = {
@@ -229,15 +232,14 @@ def handle_authentication():
             }
         return True
 
-    # Check if we already processed auth this session
-    if "auth_processed" not in st.session_state:
-        st.session_state["auth_processed"] = False
+    # Initialize cookie manager
+    cookie_manager = stx.CookieManager()
 
     # Step 1: Handle tokens from URL (from login redirect)
     id_token = st.query_params.get("id_token")
     refresh_token = st.query_params.get("refresh_token")
 
-    if id_token and not st.session_state.get("auth_processed"):
+    if id_token:
         try:
             firebase_auth.initialize_firebase_admin()
             if firebase_auth.is_firebase_admin_available():
@@ -255,11 +257,9 @@ def handle_authentication():
                     "email_verified": decoded.get("email_verified", False)
                 }
 
-                # Store refresh token persistently in session state
+                # Store refresh token in cookie (persists across refreshes)
                 if refresh_token:
-                    st.session_state["stored_refresh_token"] = refresh_token
-
-                st.session_state["auth_processed"] = True
+                    cookie_manager.set("refresh_token", refresh_token, expires_at=datetime.datetime.now() + datetime.timedelta(days=30))
 
                 # Clear query params
                 st.query_params.clear()
@@ -271,39 +271,41 @@ def handle_authentication():
             st.error(f"Failed to verify token: {str(e)}")
             st.query_params.clear()
 
-    # Step 2: If no user but we have stored refresh token, restore session
-    if "user" not in st.session_state and "stored_refresh_token" in st.session_state:
-        try:
-            refresh_token = st.session_state["stored_refresh_token"]
-            refreshed_data = firebase_auth.refresh_user_token(refresh_token)
+    # Step 2: If no user, try to restore from cookie
+    if "user" not in st.session_state:
+        stored_refresh_token = cookie_manager.get("refresh_token")
 
-            if refreshed_data:
-                firebase_auth.initialize_firebase_admin()
-                if firebase_auth.is_firebase_admin_available():
-                    from firebase_admin import auth as fb_auth
-                    # Verify the new ID token
-                    decoded = fb_auth.verify_id_token(refreshed_data["id_token"])
+        if stored_refresh_token:
+            try:
+                refreshed_data = firebase_auth.refresh_user_token(stored_refresh_token)
 
-                    st.session_state["user"] = {
-                        "email": decoded.get("email"),
-                        "name": decoded.get("name", decoded.get("email", "").split("@")[0]),
-                        "uid": decoded.get("uid"),
-                        "auth_method": refreshed_data.get("auth_method", "google"),
-                        "id_token": refreshed_data["id_token"],
-                        "refresh_token": refreshed_data.get("refresh_token", refresh_token),
-                        "email_verified": decoded.get("email_verified", False)
-                    }
+                if refreshed_data:
+                    firebase_auth.initialize_firebase_admin()
+                    if firebase_auth.is_firebase_admin_available():
+                        from firebase_admin import auth as fb_auth
+                        # Verify the new ID token
+                        decoded = fb_auth.verify_id_token(refreshed_data["id_token"])
 
-                    # Update stored refresh token
-                    st.session_state["stored_refresh_token"] = refreshed_data.get("refresh_token", refresh_token)
-                    st.rerun()
-            else:
-                # Refresh failed, clear stored token
-                del st.session_state["stored_refresh_token"]
-        except Exception as e:
-            # Refresh failed, clear stored token
-            if "stored_refresh_token" in st.session_state:
-                del st.session_state["stored_refresh_token"]
+                        st.session_state["user"] = {
+                            "email": decoded.get("email"),
+                            "name": decoded.get("name", decoded.get("email", "").split("@")[0]),
+                            "uid": decoded.get("uid"),
+                            "auth_method": refreshed_data.get("auth_method", "google"),
+                            "id_token": refreshed_data["id_token"],
+                            "refresh_token": refreshed_data.get("refresh_token", stored_refresh_token),
+                            "email_verified": decoded.get("email_verified", False)
+                        }
+
+                        # Update cookie with new refresh token
+                        cookie_manager.set("refresh_token", refreshed_data.get("refresh_token", stored_refresh_token),
+                                         expires_at=datetime.datetime.now() + datetime.timedelta(days=30))
+                        st.rerun()
+                else:
+                    # Refresh failed, clear cookie
+                    cookie_manager.delete("refresh_token")
+            except Exception as e:
+                # Refresh failed, clear cookie
+                cookie_manager.delete("refresh_token")
 
     # Step 3: Check authentication
     if "user" not in st.session_state:

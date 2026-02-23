@@ -417,14 +417,15 @@ def is_authenticated() -> bool:
 
 def logout():
     """Logout the current user."""
+    import extra_streamlit_components as stx
+
     if "user" in st.session_state:
         del st.session_state["user"]
 
-    # Clear stored refresh token
-    if "stored_refresh_token" in st.session_state:
-        del st.session_state["stored_refresh_token"]
-
-    # Clear auth processed flag
-    if "auth_processed" in st.session_state:
-        del st.session_state["auth_processed"]
+    # Clear cookie
+    try:
+        cookie_manager = stx.CookieManager()
+        cookie_manager.delete("refresh_token")
+    except:
+        pass
 
