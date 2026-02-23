@@ -233,13 +233,15 @@ def handle_authentication():
     id_token = st.query_params.get("id_token")
     refresh_token = st.query_params.get("refresh_token")
 
-    if id_token and "user" not in st.session_state:
+    # If we have tokens in URL, process them
+    if id_token:
         try:
             firebase_auth.initialize_firebase_admin()
             if firebase_auth.is_firebase_admin_available():
                 from firebase_admin import auth as fb_auth
                 decoded = fb_auth.verify_id_token(id_token)
 
+                # Store user in session state
                 st.session_state["user"] = {
                     "email": decoded.get("email"),
                     "name": decoded.get("name", decoded.get("email", "").split("@")[0]),
@@ -250,20 +252,52 @@ def handle_authentication():
                     "email_verified": decoded.get("email_verified", False)
                 }
 
-                # Clear query params after storing in session
-                st.query_params.pop("id_token", None)
-                if refresh_token:
-                    st.query_params.pop("refresh_token", None)
+                # Store tokens in session storage via JavaScript (persists across page refreshes in same tab)
+                import streamlit.components.v1 as components
+                components.html(f"""
+                <script>
+                    sessionStorage.setItem('firebase_id_token', '{id_token}');
+                    {f"sessionStorage.setItem('firebase_refresh_token', '{refresh_token}');" if refresh_token else ""}
+                </script>
+                """, height=0)
 
+                # Clear query params to clean URL
+                st.query_params.clear()
                 st.success(f"Welcome, {st.session_state['user']['name']}!")
                 st.rerun()
             else:
                 st.error("Firebase Admin SDK not initialized. Cannot verify token.")
         except Exception as e:
             st.error(f"Failed to verify token: {str(e)}")
-            st.query_params.pop("id_token", None)
-            if refresh_token:
-                st.query_params.pop("refresh_token", None)
+            st.query_params.clear()
+
+    # If no user in session state, try to restore from sessionStorage
+    if "user" not in st.session_state:
+        # Check sessionStorage for tokens (this will only work on initial load)
+        import streamlit.components.v1 as components
+
+        # We need to get tokens from sessionStorage - use a hidden component
+        session_token_script = """
+        <script>
+            const idToken = sessionStorage.getItem('firebase_id_token');
+            const refreshToken = sessionStorage.getItem('firebase_refresh_token');
+
+            if (idToken) {
+                const urlParams = new URLSearchParams(window.location.search);
+                const hasTokenInUrl = urlParams.get('id_token');
+
+                // Only redirect if tokens aren't already in URL
+                if (!hasTokenInUrl) {
+                    let redirectUrl = window.location.pathname + '?id_token=' + idToken;
+                    if (refreshToken) {
+                        redirectUrl += '&refresh_token=' + refreshToken;
+                    }
+                    window.location.href = redirectUrl;
+                }
+            }
+        </script>
+        """
+        components.html(session_token_script, height=0)
 
     # Check if user is authenticated (will handle token refresh automatically)
     if not auth.is_authenticated():
