@@ -420,11 +420,11 @@ def logout():
     if "user" in st.session_state:
         del st.session_state["user"]
 
-    # Clear localStorage
-    from streamlit.components.v1 import html
-    html("""
-    <script>
-        localStorage.removeItem('firebase_refresh_token');
-    </script>
-    """, height=0)
+    # Clear stored refresh token
+    if "stored_refresh_token" in st.session_state:
+        del st.session_state["stored_refresh_token"]
+
+    # Clear auth processed flag
+    if "auth_processed" in st.session_state:
+        del st.session_state["auth_processed"]
 
