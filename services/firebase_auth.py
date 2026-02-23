@@ -409,52 +409,22 @@ def get_current_user() -> Optional[Dict]:
 def is_authenticated() -> bool:
     """Check if user is authenticated."""
     user = get_current_user()
-    if not user:
-        return False
-
-    # For local development or users without tokens, trust session state
-    if not user.get("id_token"):
-        return True
-
-    # If user has an ID token and refresh token, try to refresh if needed
-    if user.get("id_token") and user.get("refresh_token"):
-        # Try to verify the current token
-        verified = verify_id_token(user["id_token"])
-        if verified:
-            # Token is still valid, update user data
-            user.update(verified)
-            st.session_state["user"] = user
-            return True
-        else:
-            # Token expired or invalid, try to refresh it
-            refreshed = refresh_user_token(user.get("refresh_token"))
-            if refreshed:
-                # Successfully refreshed, update session
-                user.update(refreshed)
-                st.session_state["user"] = user
-                return True
-            else:
-                # Could not refresh, logout
-                logout()
-                return False
-
-    # No refresh token available but has id_token - verify it
-    if user.get("id_token"):
-        verified = verify_id_token(user["id_token"])
-        if verified:
-            user.update(verified)
-            st.session_state["user"] = user
-            return True
-        else:
-            # Token invalid and no way to refresh, logout
-            logout()
-            return False
-
-    return True
+    # Simply check if user exists in session state
+    # Token verification and refresh happens during handle_authentication()
+    # Not on every single function call
+    return user is not None
 
 
 def logout():
     """Logout the current user."""
     if "user" in st.session_state:
         del st.session_state["user"]
+
+    # Clear localStorage
+    from streamlit.components.v1 import html
+    html("""
+    <script>
+        localStorage.removeItem('firebase_refresh_token');
+    </script>
+    """, height=0)
 

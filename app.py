@@ -229,11 +229,12 @@ def handle_authentication():
             }
         return True
 
-    # Production/Replit: Handle Firebase ID token from query params
+    import streamlit.components.v1 as components
+
+    # Step 1: Handle tokens from URL (from login redirect)
     id_token = st.query_params.get("id_token")
     refresh_token = st.query_params.get("refresh_token")
 
-    # If we have tokens in URL, process them
     if id_token:
         try:
             firebase_auth.initialize_firebase_admin()
@@ -241,66 +242,89 @@ def handle_authentication():
                 from firebase_admin import auth as fb_auth
                 decoded = fb_auth.verify_id_token(id_token)
 
-                # Store user in session state
+                # Store user in session state (for this page load)
                 st.session_state["user"] = {
                     "email": decoded.get("email"),
                     "name": decoded.get("name", decoded.get("email", "").split("@")[0]),
                     "uid": decoded.get("uid"),
                     "auth_method": "google" if decoded.get("firebase", {}).get("sign_in_provider") == "google.com" else "email",
                     "id_token": id_token,
-                    "refresh_token": refresh_token if refresh_token else None,
+                    "refresh_token": refresh_token,
                     "email_verified": decoded.get("email_verified", False)
                 }
 
-                # Store tokens in session storage via JavaScript (persists across page refreshes in same tab)
-                import streamlit.components.v1 as components
-                components.html(f"""
-                <script>
-                    sessionStorage.setItem('firebase_id_token', '{id_token}');
-                    {f"sessionStorage.setItem('firebase_refresh_token', '{refresh_token}');" if refresh_token else ""}
-                </script>
-                """, height=0)
+                # Store ONLY refresh_token in localStorage (persists across refreshes)
+                if refresh_token:
+                    components.html(f"""
+                    <script>
+                        localStorage.setItem('firebase_refresh_token', '{refresh_token}');
+                        console.log('Stored refresh token in localStorage');
+                    </script>
+                    """, height=0)
 
-                # Clear query params to clean URL
+                # Clear query params
                 st.query_params.clear()
                 st.success(f"Welcome, {st.session_state['user']['name']}!")
                 st.rerun()
             else:
-                st.error("Firebase Admin SDK not initialized. Cannot verify token.")
+                st.error("Firebase Admin SDK not initialized.")
         except Exception as e:
             st.error(f"Failed to verify token: {str(e)}")
             st.query_params.clear()
 
-    # If no user in session state, try to restore from sessionStorage
-    if "user" not in st.session_state:
-        # Check sessionStorage for tokens (this will only work on initial load)
-        import streamlit.components.v1 as components
+    # Step 2: Try to restore session using refresh_token from localStorage
+    restore_token = st.query_params.get("restore_token")
 
-        # We need to get tokens from sessionStorage - use a hidden component
-        session_token_script = """
-        <script>
-            const idToken = sessionStorage.getItem('firebase_id_token');
-            const refreshToken = sessionStorage.getItem('firebase_refresh_token');
+    if restore_token and "user" not in st.session_state:
+        # We have a refresh token from localStorage, use it to get a new session
+        try:
+            refreshed_data = firebase_auth.refresh_user_token(restore_token)
+            if refreshed_data:
+                firebase_auth.initialize_firebase_admin()
+                if firebase_auth.is_firebase_admin_available():
+                    from firebase_admin import auth as fb_auth
+                    # Verify the new ID token
+                    decoded = fb_auth.verify_id_token(refreshed_data["id_token"])
 
-            if (idToken) {
-                const urlParams = new URLSearchParams(window.location.search);
-                const hasTokenInUrl = urlParams.get('id_token');
-
-                // Only redirect if tokens aren't already in URL
-                if (!hasTokenInUrl) {
-                    let redirectUrl = window.location.pathname + '?id_token=' + idToken;
-                    if (refreshToken) {
-                        redirectUrl += '&refresh_token=' + refreshToken;
+                    st.session_state["user"] = {
+                        "email": decoded.get("email"),
+                        "name": decoded.get("name", decoded.get("email", "").split("@")[0]),
+                        "uid": decoded.get("uid"),
+                        "auth_method": refreshed_data.get("auth_method", "google"),
+                        "id_token": refreshed_data["id_token"],
+                        "refresh_token": refreshed_data.get("refresh_token", restore_token),
+                        "email_verified": decoded.get("email_verified", False)
                     }
-                    window.location.href = redirectUrl;
-                }
+
+                    # Clear the restore_token from URL
+                    st.query_params.clear()
+                    st.rerun()
+        except Exception as e:
+            # Refresh failed, clear localStorage and show login
+            components.html("""
+            <script>
+                localStorage.removeItem('firebase_refresh_token');
+            </script>
+            """, height=0)
+            st.query_params.clear()
+
+    # Step 3: If no user in session, inject script to check localStorage
+    if "user" not in st.session_state:
+        components.html("""
+        <script>
+            const refreshToken = localStorage.getItem('firebase_refresh_token');
+            const urlParams = new URLSearchParams(window.location.search);
+            const hasRestoreToken = urlParams.get('restore_token');
+
+            if (refreshToken && !hasRestoreToken) {
+                // Redirect with refresh token to restore session
+                window.location.href = window.location.pathname + '?restore_token=' + refreshToken;
             }
         </script>
-        """
-        components.html(session_token_script, height=0)
+        """, height=0)
 
-    # Check if user is authenticated (will handle token refresh automatically)
-    if not auth.is_authenticated():
+    # Step 4: Check authentication - but DON'T verify token on every call
+    if "user" not in st.session_state:
         render_auth_page()
         st.stop()
         return False
