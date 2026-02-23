@@ -229,8 +229,10 @@ def handle_authentication():
             }
         return True
 
-    # Production/Replit: Handle Firebase ID token
+    # Production/Replit: Handle Firebase ID token from query params
     id_token = st.query_params.get("id_token")
+    refresh_token = st.query_params.get("refresh_token")
+
     if id_token and "user" not in st.session_state:
         try:
             firebase_auth.initialize_firebase_admin()
@@ -244,10 +246,15 @@ def handle_authentication():
                     "uid": decoded.get("uid"),
                     "auth_method": "google" if decoded.get("firebase", {}).get("sign_in_provider") == "google.com" else "email",
                     "id_token": id_token,
+                    "refresh_token": refresh_token if refresh_token else None,
                     "email_verified": decoded.get("email_verified", False)
                 }
 
+                # Clear query params after storing in session
                 st.query_params.pop("id_token", None)
+                if refresh_token:
+                    st.query_params.pop("refresh_token", None)
+
                 st.success(f"Welcome, {st.session_state['user']['name']}!")
                 st.rerun()
             else:
@@ -255,7 +262,10 @@ def handle_authentication():
         except Exception as e:
             st.error(f"Failed to verify token: {str(e)}")
             st.query_params.pop("id_token", None)
+            if refresh_token:
+                st.query_params.pop("refresh_token", None)
 
+    # Check if user is authenticated (will handle token refresh automatically)
     if not auth.is_authenticated():
         render_auth_page()
         st.stop()

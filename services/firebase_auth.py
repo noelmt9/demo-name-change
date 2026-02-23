@@ -340,15 +340,15 @@ def create_or_get_firebase_user_from_google(email: str, name: str, google_id: st
 def verify_id_token(id_token: str) -> Optional[Dict]:
     """
     Verify a Firebase ID token using Admin SDK.
-    
+
     Returns:
         user_data: Dict or None if invalid
     """
     initialize_firebase_admin()
-    
+
     if not _firebase_admin_initialized:
         return None
-    
+
     try:
         decoded_token = auth.verify_id_token(id_token)
         return {
@@ -358,6 +358,46 @@ def verify_id_token(id_token: str) -> Optional[Dict]:
             "email_verified": decoded_token.get('email_verified', False)
         }
     except Exception:
+        return None
+
+
+def refresh_user_token(refresh_token: str) -> Optional[Dict]:
+    """
+    Refresh a Firebase ID token using a refresh token.
+
+    Returns:
+        user_data: Dict with new tokens or None if refresh failed
+    """
+    if not is_firebase_configured():
+        return None
+
+    firebase = get_firebase_app()
+    if not firebase:
+        return None
+
+    try:
+        auth_instance = firebase.auth()
+
+        # Refresh the ID token
+        user = auth_instance.refresh(refresh_token)
+
+        # Get updated user info
+        user_info = auth_instance.get_account_info(user['idToken'])
+
+        if user_info and 'users' in user_info and len(user_info['users']) > 0:
+            user_data_firebase = user_info['users'][0]
+            return {
+                "email": user_data_firebase.get('email'),
+                "name": user_data_firebase.get('displayName', user_data_firebase.get('email', '').split('@')[0]),
+                "uid": user_data_firebase.get('localId'),
+                "id_token": user['idToken'],
+                "refresh_token": user.get('refreshToken', refresh_token),
+                "email_verified": user_data_firebase.get('emailVerified', False)
+            }
+
+        return None
+    except Exception as e:
+        # Refresh failed
         return None
 
 
@@ -371,19 +411,45 @@ def is_authenticated() -> bool:
     user = get_current_user()
     if not user:
         return False
-    
-    # If user has an ID token, verify it's still valid
+
+    # For local development or users without tokens, trust session state
+    if not user.get("id_token"):
+        return True
+
+    # If user has an ID token and refresh token, try to refresh if needed
+    if user.get("id_token") and user.get("refresh_token"):
+        # Try to verify the current token
+        verified = verify_id_token(user["id_token"])
+        if verified:
+            # Token is still valid, update user data
+            user.update(verified)
+            st.session_state["user"] = user
+            return True
+        else:
+            # Token expired or invalid, try to refresh it
+            refreshed = refresh_user_token(user.get("refresh_token"))
+            if refreshed:
+                # Successfully refreshed, update session
+                user.update(refreshed)
+                st.session_state["user"] = user
+                return True
+            else:
+                # Could not refresh, logout
+                logout()
+                return False
+
+    # No refresh token available but has id_token - verify it
     if user.get("id_token"):
         verified = verify_id_token(user["id_token"])
         if verified:
-            # Update user data with verified info
             user.update(verified)
+            st.session_state["user"] = user
             return True
         else:
-            # Token expired or invalid, logout
+            # Token invalid and no way to refresh, logout
             logout()
             return False
-    
+
     return True
 
 
